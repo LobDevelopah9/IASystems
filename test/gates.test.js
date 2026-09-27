@@ -213,3 +213,28 @@ test("owners can delete unsigned cases only, and the purge is audited", async ()
 	assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'case.delete'").get());
 	config.OWNER_DISCORD_IDS.pop();
 });
+
+test("owner accounts bypass recusal and subject rules, and the bypass is audited", async () => {
+	const config = require("../lib/config");
+	config.OWNER_DISCORD_IDS.push(IDS.supervisor);
+	const a = await agent(IDS.supervisor);
+	// Lt. Brooks filed the report on 9004: normally recused.
+	const res = await get(a, "/api/cases/9004").expect(200);
+	assert.strictEqual(res.body.case.permissions.recused, null);
+	assert.strictEqual(res.body.case.permissions.ownerOverride, true);
+	assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'case.view' AND target_ref = '9004' AND detail LIKE '%ownerOverride%'").get());
+	config.OWNER_DISCORD_IDS.pop();
+	const again = await get(a, "/api/cases/9004").expect(200);
+	assert.ok(again.body.case.permissions.recused, "non-owners stay recused");
+});
+
+test("an owner who is the accused sees the full IA file, and the member view still works for them", async () => {
+	const config = require("../lib/config");
+	config.OWNER_DISCORD_IDS.push(IDS.trooperHale);
+	const hale = await agent(IDS.trooperHale);
+	const full = await get(hale, "/api/cases/9004").expect(200);
+	assert.strictEqual(full.body.case.view, "ia");
+	const mine = await get(hale, "/api/my/cases").expect(200);
+	assert.ok(mine.body.cases.every(c => c.view === "subject"));
+	config.OWNER_DISCORD_IDS.pop();
+});

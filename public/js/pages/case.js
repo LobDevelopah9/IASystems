@@ -199,6 +199,7 @@ function narrativeSections(c) {
 function sidebar(c, reload) {
 	const p = c.permissions;
 	const actions = h("div", { class: "action-list" });
+	if (p.ownerOverride) actions.append(h("div", { class: "note small" }, h("b", null, "Owner override. "), "You are the accused or the reporting party here. Conflict-of-interest rules are bypassed for your account, and your actions on this case are flagged in the audit log."));
 	if (p.recused) actions.append(h("div", { class: "recused" }, h("b", null, "Recused. "), p.recused, " You can read this file but cannot act on it."));
 	if (p.locked) actions.append(h("div", { class: "muted small" }, icon("lock"), " Closed and locked. Only the Head of IA can reopen it on appeal."));
 	for (const t of p.transitions) {

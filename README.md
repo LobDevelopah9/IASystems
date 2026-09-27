@@ -55,6 +55,7 @@ Hard rules enforced on the server regardless of role:
 
 * **Subjects never see their own investigation.** If you are the subject of a case, you only ever get the member view (determination + notice to member), even if you are IA staff. Such cases are hidden from your board, ticket inbox, and search.
 * **Recusal.** Nobody can act on a case they are the subject of or filed the report for.
+* **Owner override.** Accounts in `IA_OWNER_DISCORD_IDS` bypass recusal and the subject rules (they can open, view, and act on cases they filed or are accused in, and report themselves for testing). Every case view, status change, and signature made under the override is flagged `ownerOverride` in the audit log.
 * **Anonymity.** An anonymous report is anonymous *to the accused*. The reporter is named in the Investigation Report and is visible to every IA agent. The accused only ever gets the member view, which never contains the reporter, the report text, the transcripts, or the AI output.
 * **Last director.** The portal refuses changes that would leave it without a Head of IA. Owners in `IA_OWNER_DISCORD_IDS` are always directors and cannot be suspended.
 * Suspension, lowering a role, or leaving the Discord server revokes sessions immediately.

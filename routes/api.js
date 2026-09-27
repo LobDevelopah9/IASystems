@@ -4,7 +4,7 @@ const express = require("express");
 const config = require("../lib/config");
 const { db, now, json } = require("../lib/db");
 const { requireAuth, requireCap, revokeAllSessions } = require("../lib/auth");
-const { can, effectiveRole, ROLE_LABELS, RANK } = require("../lib/permissions");
+const { can, effectiveRole, isOwner, ROLE_LABELS, RANK } = require("../lib/permissions");
 const policy = require("../lib/policy");
 const cases = require("../lib/cases");
 const tickets = require("../lib/tickets");
@@ -73,7 +73,7 @@ router.post("/cases", requireCap("case.create"), (req, res) => {
 	}
 	const subject = subjectId ? db.prepare("SELECT * FROM personnel WHERE id = ?").get(subjectId) : null;
 	if (subjectId && !subject) throw cases.httpError(400, "Unknown subject");
-	if (subject?.discord_id === req.user.discord_id) throw cases.httpError(403, "You cannot open a case against yourself");
+	if (subject?.discord_id === req.user.discord_id && !isOwner(req.user)) throw cases.httpError(403, "You cannot open a case against yourself");
 	const reporterTicket = ticketRows.find(t => t.type === "report" || t.type === "ops");
 	const row = cases.createCase({
 		kind: body.kind,
@@ -110,7 +110,7 @@ router.post("/cases", requireCap("case.create"), (req, res) => {
 router.get("/cases/:ref", requireCap("self.cases"), (req, res) => {
 	const row = cases.requireCase(req.params.ref);
 	const data = cases.serializeCase(row, req.user);
-	audit.record(req.user, "case.view", { type: "case", ref: row.ref }, { view: data.view }, req.ip);
+	audit.record(req.user, "case.view", { type: "case", ref: row.ref }, { view: data.view, ownerOverride: cases.relation(req.user, row).override || undefined }, req.ip);
 	res.json({ case: data, viewer: { name: req.user.display_name || req.user.username, id: req.user.discord_id } });
 });
 
@@ -223,7 +223,7 @@ router.get("/tickets/:ref", requireCap("ticket.view"), (req, res) => {
 	const ticket = tickets.getTicket(req.params.ref);
 	if (!ticket) throw cases.httpError(404, "Ticket not found");
 	const subject = ticket.subject_personnel_id ? db.prepare("SELECT discord_id FROM personnel WHERE id = ?").get(ticket.subject_personnel_id) : null;
-	if (subject?.discord_id === req.user.discord_id) throw cases.httpError(404, "Ticket not found");
+	if (subject?.discord_id === req.user.discord_id && !isOwner(req.user)) throw cases.httpError(404, "Ticket not found");
 	const reveal = can(req.user, "case.view_identity");
 	audit.record(req.user, "ticket.transcript_view", { type: "ticket", ref: ticket.ref }, { identityRevealed: Boolean(ticket.anonymous && reveal) }, req.ip);
 	res.json({ ticket: tickets.ticketSummary(ticket, req.user), intake: redactedIntake(ticket, reveal), messages: tickets.transcript(ticket, { revealIdentity: reveal }) });
@@ -237,7 +237,7 @@ router.get("/attachments/:id", requireCap("ticket.view"), (req, res) => {
 	const file = db.prepare("SELECT a.*, t.ref AS ticket_ref, t.subject_personnel_id FROM ticket_attachments a JOIN tickets t ON t.id = a.ticket_id WHERE a.id = ?").get(Number(req.params.id));
 	if (!file?.stored_path) throw cases.httpError(404, "Attachment not stored");
 	const subject = file.subject_personnel_id ? db.prepare("SELECT discord_id FROM personnel WHERE id = ?").get(file.subject_personnel_id) : null;
-	if (subject?.discord_id === req.user.discord_id) throw cases.httpError(404, "Attachment not stored");
+	if (subject?.discord_id === req.user.discord_id && !isOwner(req.user)) throw cases.httpError(404, "Attachment not stored");
 	const full = path.resolve(config.DATA_DIR, file.stored_path);
 	if (!full.startsWith(path.resolve(config.DATA_DIR)) || !fs.existsSync(full)) throw cases.httpError(404, "Attachment missing");
 	audit.record(req.user, "ticket.attachment_view", { type: "ticket", ref: file.ticket_ref }, { attachment: file.id }, req.ip);
@@ -255,7 +255,7 @@ router.get("/personnel", requireCap("case.view"), (req, res) => {
 	const q = `%${String(req.query.q || "").trim()}%`;
 	const rows = db.prepare(`SELECT p.*, (SELECT COUNT(*) FROM cases c WHERE c.subject_personnel_id = p.id) AS case_count
 		FROM personnel p WHERE (p.name LIKE @q OR p.callsign LIKE @q OR p.roblox_username LIKE @q OR p.discord_username LIKE @q)
-		AND (p.discord_id IS NULL OR p.discord_id <> @me) ORDER BY p.name LIMIT 200`).all({ q, me: req.user.discord_id });
+		AND (p.discord_id IS NULL OR p.discord_id <> @me) ORDER BY p.name LIMIT 200`).all({ q, me: isOwner(req.user) ? "" : req.user.discord_id });
 	res.json({ personnel: rows.map(p => ({ id: p.id, name: p.name, callsign: p.callsign, robloxUsername: p.roblox_username, discordUsername: p.discord_username, department: p.department, rank: p.rank, discordId: p.discord_id, caseCount: p.case_count, demo: Boolean(p.demo) })) });
 });
 
@@ -271,7 +271,7 @@ router.post("/personnel", requireCap("personnel.manage"), (req, res) => {
 router.patch("/personnel/:id", requireCap("personnel.manage"), (req, res) => {
 	const person = db.prepare("SELECT * FROM personnel WHERE id = ?").get(Number(req.params.id));
 	if (!person) throw cases.httpError(404, "Not found");
-	if (person.discord_id === req.user.discord_id) throw cases.httpError(403, "You cannot edit your own personnel record");
+	if (person.discord_id === req.user.discord_id && !isOwner(req.user)) throw cases.httpError(403, "You cannot edit your own personnel record");
 	const fields = { callsign: 40, roblox_username: 40, discord_username: 40, rank: 60, department: 40, notes: 1000 };
 	const updates = Object.entries(fields).filter(([k]) => k in (req.body || {})).map(([k, max]) => [k, String(req.body[k] || "").slice(0, max) || null]);
 	if (!person.discord_id && "name" in (req.body || {})) updates.push(["name", String(req.body.name).trim().slice(0, 80) || person.name]);
@@ -479,7 +479,7 @@ router.post("/system/purge-demo", requireCap("settings.manage"), (req, res) => {
 router.get("/my/cases", requireCap("self.cases"), (req, res) => {
 	const rows = db.prepare(`SELECT c.* FROM cases c JOIN personnel p ON p.id = c.subject_personnel_id
 		WHERE p.discord_id = ? AND c.status IN ('approved', 'appealed', 'closed') ORDER BY c.updated_at DESC`).all(req.user.discord_id);
-	res.json({ cases: rows.map(row => cases.serializeCase(row, req.user)) });
+	res.json({ cases: rows.map(row => cases.serializeCase(row, req.user, { asSubject: true })) });
 });
 
 router.post("/my/cases/:ref/appeal", requireCap("self.cases"), (req, res) => {
