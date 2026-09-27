@@ -120,6 +120,25 @@ router.patch("/cases/:ref", requireCap("case.edit"), (req, res) => {
 	res.json({ case: cases.serializeCase(row, req.user) });
 });
 
+// Owner-only removal of an unsigned case (e.g. test cases). Signed cases can never be deleted.
+router.delete("/cases/:ref", requireCap("settings.manage"), (req, res) => {
+	if (!config.OWNER_DISCORD_IDS.includes(req.user.discord_id)) throw cases.httpError(403, "Only owner accounts can delete cases");
+	const row = cases.requireCase(req.params.ref);
+	if (cases.relation(req.user, row).isSubject) throw cases.httpError(403, "You cannot delete a case where you are the accused");
+	if (db.prepare("SELECT 1 FROM signatures WHERE case_id = ?").get(row.id)) throw cases.httpError(409, "Signed cases are permanent and cannot be deleted");
+	if (String(req.body?.confirm || "").trim() !== `DELETE ${row.ref}`) throw cases.httpError(400, `Type DELETE ${row.ref} to confirm`);
+	db.transaction(() => {
+		db.prepare("INSERT OR REPLACE INTO case_purges (case_id, ref, purged_by, reason, purged_at) VALUES (?, ?, ?, ?, ?)")
+			.run(row.id, row.ref, req.user.discord_id, String(req.body?.reason || "").slice(0, 300) || null, now());
+		db.prepare("DELETE FROM jobs WHERE kind = 'draft_case' AND json_extract(payload, '$.caseId') = ?").run(row.id);
+		db.prepare("DELETE FROM cases_fts WHERE case_id = ?").run(row.id);
+		db.prepare("UPDATE link_groups SET case_id = NULL WHERE case_id = ?").run(row.id);
+		db.prepare("DELETE FROM cases WHERE id = ?").run(row.id);
+	})();
+	audit.record(req.user, "case.delete", { type: "case", ref: row.ref }, { reason: req.body?.reason || null, title: row.title }, req.ip);
+	res.json({ ok: true });
+});
+
 router.post("/cases/:ref/status", requireCap("case.edit"), (req, res) => {
 	const row = cases.transition(req.params.ref, String(req.body?.to || ""), req.user, String(req.body?.note || "").slice(0, 1000));
 	res.json({ case: cases.card(row, req.user) });

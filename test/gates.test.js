@@ -196,3 +196,20 @@ test("AI output validation drops invented refs and non-verbatim quotes", () => {
 	assert.strictEqual(result.decision.punishment, "black_mark,fto");
 	assert.deepStrictEqual(result.narrative.violations, ["Unprofessionalism"]);
 });
+
+test("owners can delete unsigned cases only, and the purge is audited", async () => {
+	process.env.IA_OWNER_DISCORD_IDS = "";
+	const director = await agent(IDS.director);
+	const created = await post(director, "/api/cases", { title: "Test to delete", subjectName: "Nobody Special" }).expect(201);
+	// Directors who are not owners cannot delete.
+	await director.delete(`/api/cases/${created.body.ref}`).set("X-IA-Request", "1").send({ confirm: `DELETE ${created.body.ref}` }).expect(403);
+	const config = require("../lib/config");
+	config.OWNER_DISCORD_IDS.push(IDS.director);
+	await director.delete(`/api/cases/${created.body.ref}`).set("X-IA-Request", "1").send({ confirm: "nope" }).expect(400);
+	await director.delete(`/api/cases/${created.body.ref}`).set("X-IA-Request", "1").send({ confirm: `DELETE ${created.body.ref}` }).expect(200);
+	await get(director, `/api/cases/${created.body.ref}`).expect(404);
+	// Signed cases are permanent.
+	await director.delete("/api/cases/9003").set("X-IA-Request", "1").send({ confirm: "DELETE 9003" }).expect(409);
+	assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'case.delete'").get());
+	config.OWNER_DISCORD_IDS.pop();
+});

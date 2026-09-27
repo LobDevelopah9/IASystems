@@ -214,6 +214,19 @@ function sidebar(c, reload) {
 		reload();
 	} }, icon("bot"), "Redraft with AI"));
 	if (p.canViewHistory) actions.append(h("button", { class: "btn", onclick: () => openHistory(c) }, icon("log"), "Case history & audit"));
+	if (p.canDelete) actions.append(h("button", { class: "btn danger", onclick: async () => {
+		const typed = await confirmDialog({
+			title: `Delete case #${c.ref}?`,
+			message: "Owner-only cleanup for unsigned cases such as tests. The case is removed permanently, its tickets return to the inbox, and the deletion is recorded in the audit log. Signed cases can never be deleted.",
+			confirmLabel: "Delete case",
+			danger: true,
+			input: { label: `Type DELETE ${c.ref} to confirm`, required: true }
+		});
+		if (!typed) return;
+		await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}`, { method: "DELETE", body: { confirm: typed.trim(), reason: "Deleted from case file" } }), `Case #${c.ref} deleted`);
+		refreshCounts();
+		location.hash = "#/board";
+	} }, icon("x"), "Delete case (owner)"));
 
 	const ticketList = h("div", { class: "stack", style: { gap: "8px" } }, c.tickets.length ? c.tickets.map(t =>
 		h("div", { class: "ticket-item", role: "button", tabindex: "0", onclick: () => openTranscript(c, `${t.ref}#1`, false), onkeydown: e => { if (e.key === "Enter") openTranscript(c, `${t.ref}#1`, false); } },
