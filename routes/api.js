@@ -190,7 +190,7 @@ router.post("/cases/:ref/redraft", requireCap("case.redraft"), (req, res) => {
 	const row = cases.requireCase(req.params.ref);
 	const perms = cases.casePermissions(req.user, row);
 	if (cases.accessLevel(req.user, row) !== "ia" || !perms.canRedraft) throw cases.httpError(403, perms.recused ? `Recused: ${perms.recused}` : "This case cannot be redrafted now");
-	if (!ai.providerInfo().configured) throw cases.httpError(409, "The AI provider is not configured yet. See Settings → System.");
+	if (!ai.providerInfo().configured && !ai.providerInfo().fallback) throw cases.httpError(409, "The AI provider is not configured yet. See Settings → System.");
 	cases.enqueueDraft(row.id);
 	audit.record(req.user, "case.redraft", { type: "case", ref: row.ref }, {}, req.ip);
 	res.json({ ok: true });

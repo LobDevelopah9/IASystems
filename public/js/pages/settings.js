@@ -41,13 +41,16 @@ export async function render({ page, params, isCurrent }) {
 				item(s.discord.ticketCategoryId ? "ok" : "warn", "Ticket category", s.discord.ticketCategoryId ? "Tickets open under the configured category." : "Optional, but recommended: choose a private category for IA tickets."),
 				item(s.discord.logChannelId ? "ok" : "warn", "IA log channel", s.discord.logChannelId ? "Ticket events post links (never content) here." : "Optional: a private staff channel for ticket notifications."),
 				item(s.roleMapComplete ? "ok" : "bad", "Role mapping", s.roleMapComplete ? "Director, supervisor, and investigator roles are mapped." : "Map Discord roles to portal roles under Discord & roles."),
-				item(s.ai.configured ? "ok" : "bad", "AI drafting", s.ai.configured ? `${s.ai.provider} · ${s.ai.model}` : "Set AI_PROVIDER, AI_API_KEY and optionally AI_MODEL.",
-					h("div", null, h("button", { class: "btn sm", style: { marginTop: "6px" }, onclick: async () => {
-						aiResult.textContent = "Testing…";
-						const r = await api("/system/ai-test", { method: "POST", body: {} });
-						aiResult.textContent = r.ok ? `Connected · ${r.latencyMs} ms` : `Failed: ${r.error}`;
-						aiResult.style.color = r.ok ? "var(--green)" : "var(--red)";
-					} }, icon("bot"), "Test connection"), aiResult)),
+				item(s.ai.configured ? "ok" : "bad", "AI drafting", s.ai.configured ? `Primary: ${s.ai.provider} · ${s.ai.model}` : "Set AI_PROVIDER, AI_API_KEY and optionally AI_MODEL.",
+					h("div", null,
+						h("p", null, s.ai.fallback ? `Fallback: ${s.ai.fallback.provider} · ${s.ai.fallback.model}. Used automatically when the primary is overloaded or failing.` : "No fallback. Set AI_FALLBACK_API_KEY (Groq) so drafts keep working when the primary is overloaded."),
+						h("button", { class: "btn sm", style: { marginTop: "6px" }, onclick: async () => {
+							aiResult.textContent = "Testing…";
+							const r = await api("/system/ai-test", { method: "POST", body: {} });
+							const line = (label, t) => !t ? null : `${label}: ${t.ok ? `connected · ${t.provider}/${t.model} · ${t.latencyMs} ms` : `failed · ${t.error}`}`;
+							aiResult.textContent = [line("Primary", r.primary), line("Fallback", r.fallback)].filter(Boolean).join("  |  ");
+							aiResult.style.color = r.primary?.ok && (!r.fallback || r.fallback.ok) ? "var(--green)" : r.ok ? "var(--amber)" : "var(--red)";
+						} }, icon("bot"), "Test connection"), aiResult)),
 				item(s.persistent ? "ok" : "warn", "Persistent storage", s.persistent ? `Data stored on the volume at ${s.dataDir}.` : `Data directory ${s.dataDir} is not a mounted volume. Data will be lost on redeploy.`),
 				item(s.owners ? "ok" : "warn", "Break-glass owner", s.owners ? `${s.owners} owner account(s) set via IA_OWNER_DISCORD_IDS.` : "Set IA_OWNER_DISCORD_IDS so at least one Head of IA can always sign in.")))),
 			h("div", { class: "stack" },

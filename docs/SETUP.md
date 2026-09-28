@@ -47,6 +47,8 @@ Pick one. The portal is already set to **Gemini**.
 | **Google Gemini** (recommended, already selected) | https://aistudio.google.com/apikey → **Create API key** | Generous free tier and a large context window, so long tickets fit. On the free tier Google may use prompts to improve its products. |
 | **Groq** | https://console.groq.com/keys | Free, very fast, and does not train on your data. Per-minute token limits are lower, so very long tickets may need a retry. Set `AI_PROVIDER=groq`. |
 
+**Backup (recommended):** also create a Groq key at https://console.groq.com/keys and set it as `AI_FALLBACK_API_KEY`. When Gemini is overloaded or failing, drafts switch to Groq automatically. The best available Groq model is picked for you, and `AI_FALLBACK_MODEL` pins a specific one.
+
 ## 4. Add the variables in Railway
 
 Railway → IA Systems (SAHP) → `IASystems` → **Variables** → **New Variable**. Add:
