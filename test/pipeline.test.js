@@ -68,6 +68,9 @@ test("closing a ticket drafts a report-style case in Marked for Review", async (
 	assert.strictEqual(JSON.parse(row.narrative_excerpts).length, 1, "verbatim excerpt kept");
 	assert.ok(lastPrompt.includes("ANONYMOUS REPORT (reporter: Secret Reporter)"), "the report names the anonymous reporter for IA");
 	assert.ok(lastPrompt.includes("first person"), "style guide is in the prompt");
+	assert.ok(lastPrompt.includes("[REPORTING PARTY] Secret Reporter"), "authors are tagged with their role");
+	assert.ok(lastPrompt.includes("[BOT] Bot"), "bot lines are tagged");
+	assert.ok(lastPrompt.includes(" EST)"), "times are given in EST");
 	assert.strictEqual(row.conclusion, "After collecting both statements, X1 Black Mark and FTO.");
 	assert.deepStrictEqual(JSON.parse(row.violations), ["Reckless Driving"]);
 	assert.ok(JSON.parse(row.evidence).some(e => e.url === "https://medal.tv/games/roblox/clips/abc123"), "clip links become evidence");
