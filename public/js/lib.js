@@ -284,22 +284,9 @@ export function setViewer(viewer) {
 	viewerStamp = viewer;
 }
 
-// Tiled watermark naming the viewer, so any photo or screenshot identifies its source.
-export function watermark(viewer = viewerStamp) {
-	const text = `${viewer?.name || "IA"} · ${viewer?.id || ""} · ${new Date().toISOString().slice(0, 16).replace("T", " ")}Z · CONFIDENTIAL`;
-	const canvas = document.createElement("canvas");
-	canvas.width = 460;
-	canvas.height = 200;
-	const ctx = canvas.getContext("2d");
-	ctx.translate(230, 100);
-	ctx.rotate(-0.35);
-	ctx.fillStyle = "#ffffff";
-	ctx.font = "600 13px Inter, sans-serif";
-	ctx.textAlign = "center";
-	ctx.fillText(text, 0, 0);
-	const el = h("div", { class: "watermark", "aria-hidden": "true" });
-	el.style.backgroundImage = `url(${canvas.toDataURL()})`;
-	return el;
+// The on-screen watermark was removed at IA command's request. Callers still insert this placeholder node.
+export function watermark() {
+	return document.createComment("");
 }
 
 export function debounce(fn, ms) {

@@ -65,7 +65,7 @@ Hard rules enforced on the server regardless of role:
 The case file never leaves the system as a portable artifact.
 
 * No export, print, PDF, or copy features exist. `Ctrl+P`/`Ctrl+S` are blocked, print CSS blanks the page, text selection, right-click, drag, copy, and cut are disabled on all case material, including the editor.
-* A tiled watermark with the viewer's name, Discord ID, and time is drawn over every case file and transcript.
+* PDF exports carry an export stamp (who and when) on every page. There is no on-screen watermark.
 * A privacy shield blurs case material whenever the window loses focus (snipping tools, window switching) or on PrintScreen.
 * All API responses are `no-store`. Attachments are served only inline, through an authenticated, audited route.
 * Every case view, transcript view, attachment view, edit, signature, status change, sign-in, and denied access is written to a hash-chained audit log. You can check it with **Audit Log → Verify integrity**.
