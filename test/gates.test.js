@@ -238,3 +238,18 @@ test("an owner who is the accused sees the full IA file, and the member view sti
 	assert.ok(mine.body.cases.every(c => c.view === "subject"));
 	config.OWNER_DISCORD_IDS.pop();
 });
+
+test("PDF export is limited to IA_EXPORT_DISCORD_IDS and is audited", async () => {
+	const config = require("../lib/config");
+	const a = await agent(IDS.director);
+	await get(a, "/api/cases/9003/export.pdf").expect(403);
+	config.EXPORT_DISCORD_IDS.push(IDS.director);
+	const res = await get(a, "/api/cases/9003/export.pdf").buffer(true).parse((r, cb) => { const chunks = []; r.on("data", c => chunks.push(c)); r.on("end", () => cb(null, Buffer.concat(chunks))); }).expect(200);
+	assert.strictEqual(res.headers["content-type"], "application/pdf");
+	assert.strictEqual(res.body.subarray(0, 5).toString(), "%PDF-");
+	require("fs").writeFileSync(process.env.PDF_SAMPLE || require("os").tmpdir() + "/ia-sample.pdf", res.body);
+	assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'case.export' AND target_ref = '9003'").get());
+	const trooper = await agent(IDS.trooperCortez);
+	await get(trooper, "/api/cases/9003/export.pdf").expect(403);
+	config.EXPORT_DISCORD_IDS.pop();
+});

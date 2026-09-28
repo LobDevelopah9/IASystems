@@ -15,6 +15,7 @@ export async function render({ params, page, go }) {
 	}
 	page.setTitle(`Case #${c.ref}`, c.title);
 	const actions = [];
+	if (c.permissions.canExport) actions.push(h("a", { class: "btn", href: `/api/cases/${encodeURIComponent(c.ref)}/export.pdf`, download: `SAHP-IA-Case-${c.ref}.pdf`, title: "Export the Investigation Report as PDF (logged)" }, icon("file"), "Download PDF"));
 	if (c.permissions.canEdit) actions.push(h("a", { class: "btn", href: `#/cases/${encodeURIComponent(c.ref)}/edit` }, icon("edit"), "Edit case"));
 	if (c.permissions.canSign) actions.push(h("button", { class: "btn primary", onclick: () => openSignModal(c, reload) }, icon("pen"), "Sign & approve"));
 	page.setActions(...actions);

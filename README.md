@@ -70,6 +70,8 @@ The case file never leaves the system as a portable artifact.
 * All API responses are `no-store`. Attachments are served only inline, through an authenticated, audited route.
 * Every case view, transcript view, attachment view, edit, signature, status change, sign-in, and denied access is written to a hash-chained audit log. You can check it with **Audit Log → Verify integrity**.
 
+**PDF export exception.** Only the Discord IDs in `IA_EXPORT_DISCORD_IDS` see a **Download PDF** button. It produces the Investigation Report in the OPS document format. Every export is written to the audit log (`case.export`), and every page is stamped with the exporter and the time.
+
 True screenshot prevention is impossible in a browser. These controls remove the sanctioned exits and make any leak traceable to the viewer.
 
 ## Discord commands

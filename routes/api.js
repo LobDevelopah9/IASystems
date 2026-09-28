@@ -114,6 +114,22 @@ router.get("/cases/:ref", requireCap("self.cases"), (req, res) => {
 	res.json({ case: data, viewer: { name: req.user.display_name || req.user.username, id: req.user.discord_id } });
 });
 
+// PDF export of the Investigation Report, restricted to IA_EXPORT_DISCORD_IDS and audited.
+router.get("/cases/:ref/export.pdf", requireCap("case.view"), (req, res) => {
+	if (!config.EXPORT_DISCORD_IDS.includes(req.user.discord_id)) {
+		audit.record(req.user, "access.denied", { type: "case", ref: req.params.ref }, { action: "export" }, req.ip);
+		throw cases.httpError(403, "You are not authorised to export case files");
+	}
+	const row = cases.requireCase(req.params.ref);
+	const data = cases.serializeCase(row, req.user);
+	if (data.view !== "ia") throw cases.httpError(404, "Case not found");
+	audit.record(req.user, "case.export", { type: "case", ref: row.ref }, { format: "pdf" }, req.ip);
+	res.set("Content-Type", "application/pdf");
+	res.set("Content-Disposition", `attachment; filename="SAHP-IA-Case-${row.ref}.pdf"`);
+	const pdf = require("../lib/pdf").investigationReportPdf(data, { exportedBy: { name: req.user.display_name || req.user.username, id: req.user.discord_id } });
+	pdf.pipe(res);
+});
+
 router.patch("/cases/:ref", requireCap("case.edit"), (req, res) => {
 	const { changes, reason } = req.body || {};
 	const row = cases.updateCase(req.params.ref, changes || {}, req.user, reason);
