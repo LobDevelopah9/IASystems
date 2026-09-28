@@ -309,3 +309,24 @@ test("key points: IA staff can set them, subjects and troopers cannot", async ()
 	const trooper = await agent(IDS.trooperCortez);
 	await post(trooper, "/api/cases/9002/key-points", { points: ["x"] }).expect(403);
 });
+
+test("owners can void a signed test case: number freed, history kept, hidden from the board", async () => {
+	const config = require("../lib/config");
+	config.OWNER_DISCORD_IDS.push(IDS.director);
+	const director = await agent(IDS.director);
+	await post(director, "/api/cases/9005/void", { confirm: "VOID 9005", reason: "x" }).expect(400);
+	const res = await post(director, "/api/cases/9005/void", { confirm: "VOID 9005", reason: "Test case created during setup" }).expect(200);
+	assert.strictEqual(res.body.ref, "VOID-9005");
+	await get(director, "/api/cases/9005").expect(404);
+	const v = await get(director, "/api/cases/VOID-9005").expect(200);
+	assert.strictEqual(v.body.case.signatures.length > 0, true, "signatures kept");
+	assert.ok(v.body.case.voided);
+	const board = await get(director, "/api/cases").expect(200);
+	assert.ok(!board.body.cases.some(c => c.ref === "VOID-9005"), "hidden from the board");
+	const voided = await get(director, "/api/cases?source=voided").expect(200);
+	assert.ok(voided.body.cases.some(c => c.ref === "VOID-9005"));
+	assert.ok(db.prepare("SELECT 1 FROM audit_log WHERE action = 'case.void'").get());
+	config.OWNER_DISCORD_IDS.pop();
+	const other = await agent(IDS.supervisor);
+	await post(other, "/api/cases/9003/void", { confirm: "VOID 9003", reason: "not an owner" }).expect(403);
+});

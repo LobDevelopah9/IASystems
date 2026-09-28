@@ -139,6 +139,26 @@ router.patch("/cases/:ref", requireCap("case.edit"), (req, res) => {
 });
 
 // Owner-only removal of an unsigned case (e.g. test cases). Signed cases can never be deleted.
+// Owner-only voiding of a signed case that should not exist (e.g. a test). Signatures and audit history stay intact;
+// the case is renamed VOID-<ref>, taken out of the case numbering, closed, and hidden from the board.
+router.post("/cases/:ref/void", requireCap("settings.manage"), (req, res) => {
+	if (!isOwner(req.user)) throw cases.httpError(403, "Only owner accounts can void cases");
+	const row = cases.requireCase(req.params.ref);
+	if (cases.relation(req.user, row).isSubject) throw cases.httpError(403, "You cannot void a case where you are the accused");
+	if (row.legacy_source) throw cases.httpError(409, "Imported records cannot be voided");
+	if (row.voided) throw cases.httpError(409, "This case is already void");
+	if (String(req.body?.confirm || "").trim() !== `VOID ${row.ref}`) throw cases.httpError(400, `Type VOID ${row.ref} to confirm`);
+	const reason = String(req.body?.reason || "").trim().slice(0, 300);
+	if (reason.length < 5) throw cases.httpError(400, "Give a reason for voiding this case");
+	let newRef = `VOID-${row.ref}`;
+	for (let i = 2; db.prepare("SELECT 1 FROM cases WHERE ref = ?").get(newRef); i++) newRef = `VOID-${row.ref}-${i}`;
+	db.prepare("UPDATE cases SET ref = ?, case_number = NULL, voided = 1, void_reason = ?, status = 'closed', closed_at = COALESCE(closed_at, ?), updated_at = ? WHERE id = ?")
+		.run(newRef, reason, now(), now(), row.id);
+	cases.indexCase(row.id);
+	audit.record(req.user, "case.void", { type: "case", ref: row.ref }, { newRef, reason }, req.ip);
+	res.json({ ok: true, ref: newRef });
+});
+
 router.delete("/cases/:ref", requireCap("settings.manage"), (req, res) => {
 	if (!config.OWNER_DISCORD_IDS.includes(req.user.discord_id)) throw cases.httpError(403, "Only owner accounts can delete cases");
 	const row = cases.requireCase(req.params.ref);

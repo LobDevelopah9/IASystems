@@ -34,6 +34,7 @@ function caseFile(c) {
 		c.signatureState === "valid" ? h("span", { class: "tag green" }, icon("pen"), "Signed") : null,
 		c.signatureState === "stale" ? h("span", { class: "tag red" }, icon("alert"), "Signature invalidated") : null,
 		c.demo ? h("span", { class: "tag" }, "Demo data") : null,
+		c.voided ? h("span", { class: "tag red", title: c.voided.reason }, icon("x"), `Voided: ${c.voided.reason}`) : null,
 		...(c.tags || []).map(t => h("span", { class: `label-chip ${t.color}` }, t.label)),
 		c.related.length ? h("span", { class: "tag gold" }, icon("link"), `Related: ${c.related.map(r => `#${r.ref}`).join(", ")}`) : null);
 
@@ -232,6 +233,21 @@ function sidebar(c, reload) {
 		reload();
 	} }, icon("bot"), "Redraft with AI"));
 	if (p.canViewHistory) actions.append(h("button", { class: "btn", onclick: () => openHistory(c) }, icon("log"), "Case history & audit"));
+	if (p.canVoid) actions.append(h("button", { class: "btn danger", onclick: async () => {
+		const typed = await confirmDialog({
+			title: `Void case #${c.ref}?`,
+			message: "For signed cases that should not exist, such as tests. The case is renamed VOID-" + c.ref + ", closed, removed from the board, and its case number is freed. Nothing is deleted: signatures and the audit log stay intact, and the case remains reachable from the audit log.",
+			confirmLabel: "Void case",
+			danger: true,
+			input: { label: `Type VOID ${c.ref} to confirm`, required: true }
+		});
+		if (!typed) return;
+		const reason = await confirmDialog({ title: "Reason for voiding", message: "Recorded on the case and in the audit log.", confirmLabel: "Void case", danger: true, input: { label: "Reason", value: "Test case created while setting up the portal", required: true } });
+		if (!reason) return;
+		const res = await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/void`, { method: "POST", body: { confirm: typed.trim(), reason } }), `Case #${c.ref} voided`);
+		refreshCounts();
+		location.hash = `#/cases/${encodeURIComponent(res.ref)}`;
+	} }, icon("x"), "Void test case (owner)"));
 	if (p.canDelete) actions.append(h("button", { class: "btn danger", onclick: async () => {
 		const typed = await confirmDialog({
 			title: `Delete case #${c.ref}?`,

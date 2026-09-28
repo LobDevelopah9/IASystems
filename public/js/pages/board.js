@@ -23,7 +23,7 @@ export async function render({ key, page, go, isCurrent }) {
 
 	const filters = { q: "", status: review ? ["marked_for_review"] : [], kind: "", agent: "", from: "", to: "", subject: "", reporter: "", anonymous: "", tag: "", source: "" };
 	const tagSelect = h("select", { class: "input", "aria-label": "Label" }, h("option", { value: "" }, "All labels"), (store.policy.tags || []).map(t => h("option", { value: t.key }, t.label)));
-	const sourceSelect = h("select", { class: "input", "aria-label": "Source" }, h("option", { value: "" }, "All records"), h("option", { value: "portal" }, "Portal cases"), h("option", { value: "legacy" }, "Imported (Trello)"));
+	const sourceSelect = h("select", { class: "input", "aria-label": "Source" }, h("option", { value: "" }, "All records"), h("option", { value: "portal" }, "Portal cases"), h("option", { value: "legacy" }, "Imported (Trello)"), h("option", { value: "voided" }, "Voided"));
 	let view = review ? "list" : readPref();
 	let agents = [];
 	let results = [];
