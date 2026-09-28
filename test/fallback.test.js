@@ -52,3 +52,14 @@ test("drafting falls back to the backup provider when the primary is overloaded"
 	assert.strictEqual(ai.providerInfo().fallback.model, "backup-model");
 	for (const s of [overloaded, healthy]) { s.closeAllConnections(); s.close(); }
 });
+
+test("first-person drafts are rejected so the model retries in the third person", () => {
+	const { validate } = require("../lib/ai");
+	const { punishments } = require("../lib/policy");
+	const base = { decision: { finding: "sustained", punishments: ["black_mark"], appealable: true, rationale: "r" } };
+	const ctx = { punishments: punishments(), validRefs: new Set(["T-0001#1"]), messageText: new Map([["T-0001#1", "x"]]) };
+	const first = validate({ ...base, report: { ticket_details: { text: "I claimed the ticket and asked the reporter." }, conclusion: { text: "The evidence supports it." } } }, ctx);
+	assert.ok(first.problems.some(p => /third person/.test(p)));
+	const quoted = validate({ ...base, report: { ticket_details: { text: "The accused stated \"I did not hear it\" (T-0001#1)." }, conclusion: { text: "The Office of Professional Standards recommends X1 Black Mark." } } }, ctx);
+	assert.deepStrictEqual(quoted.problems, [], "first person inside direct quotes is allowed");
+});

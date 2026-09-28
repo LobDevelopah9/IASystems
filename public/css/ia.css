@@ -465,3 +465,19 @@ table.table { width: 100%; border-collapse: collapse; }
 	.lh-org { align-items: center; text-align: center; }
 	.contact-grid { grid-template-columns: 1fr; }
 }
+
+/* ---------- Trello-style labels, Basis line ---------- */
+.card .basis { font-size: 12px; color: var(--text-2); margin: -4px 0 8px; line-height: 1.4; }
+.card .basis b { color: var(--muted); font-weight: 600; }
+.labels { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.label-chip { display: inline-flex; align-items: center; height: 18px; padding: 0 7px; border-radius: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em; color: #fff; }
+.label-chip.violet { background: #6e4bc2; }
+.label-chip.blue { background: #1f6fb2; }
+.label-chip.red { background: #b53a33; }
+.label-chip.amber { background: #b5701f; }
+.label-chip.gold { background: #9a7a1c; }
+.key-points { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.key-points li { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: start; padding: 8px 10px; border-radius: 8px; background: var(--bg-2); border: 1px solid var(--line); font-size: 13px; line-height: 1.45; }
+.key-points li::before { content: ""; width: 6px; height: 6px; margin-top: 6px; border-radius: 50%; background: var(--gold); }
+.key-points .meta { grid-column: 2; font-size: 11px; color: var(--muted); }
+.legacy-banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--panel); font-size: 13px; }

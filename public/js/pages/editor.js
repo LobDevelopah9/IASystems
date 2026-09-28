@@ -44,6 +44,13 @@ export async function render({ params, page, go }) {
 		reason: h("input", { class: "input", placeholder: signed ? "Required: why is signed content being changed?" : "Optional: reason for this edit" })
 	};
 
+	const selectedTags = new Set((c.tags || []).map(t => t.key));
+	const tagPicker = h("div", { class: "role-list" }, (store.policy.tags || []).map(t => {
+		const cb = h("input", { type: "checkbox", checked: selectedTags.has(t.key) });
+		const chip = h("label", { class: `role-chip${cb.checked ? " on" : ""}` }, cb, h("span", { class: `label-chip ${t.color}` }, t.label));
+		cb.addEventListener("change", () => { cb.checked ? selectedTags.add(t.key) : selectedTags.delete(t.key); chip.classList.toggle("on", cb.checked); });
+		return chip;
+	}));
 	const evidence = c.report.evidence.map(item => ({ ...item }));
 	const evBox = h("div", { class: "stack", style: { gap: "8px" } });
 	function drawEvidence() {
@@ -97,7 +104,8 @@ export async function render({ params, page, go }) {
 					h("label", { class: "field" }, h("span", null, "Type"), f.kind),
 					h("label", { class: "field" }, h("span", null, "Accused trooper"), f.subject)),
 				h("small", { class: "muted" }, "ROBLOX username, Discord username, and rank of the accused are edited on their personnel record (Users & Agents → Personnel directory)."),
-				h("label", { class: "field" }, h("span", null, "Accused violations (comma separated)"), f.violations),
+				h("label", { class: "field" }, h("span", null, "Basis / accused violations (comma separated)"), f.violations),
+				h("div", { class: "field" }, h("span", null, "Labels"), tagPicker),
 				h("div", { class: "grid-3" },
 					h("label", { class: "field" }, h("span", null, "Accuser ROBLOX username"), f.reporterRoblox),
 					h("label", { class: "field" }, h("span", null, "Incident time"), f.incidentAt),
@@ -165,6 +173,8 @@ export async function render({ params, page, go }) {
 		if (JSON.stringify(timeline) === JSON.stringify(c.narrative.timeline)) delete changes.narrative_timeline;
 		if (JSON.stringify(changes.violations) === JSON.stringify(c.violations)) delete changes.violations;
 		if (JSON.stringify(evidence) === JSON.stringify(c.report.evidence)) delete changes.evidence;
+		const tagKeys = (store.policy.tags || []).map(t => t.key).filter(k => selectedTags.has(k));
+		if (JSON.stringify(tagKeys) !== JSON.stringify((c.tags || []).map(t => t.key))) changes.tags = tagKeys;
 		if (c.reporter.revealed) changes.reporter_roblox = f.reporterRoblox.value;
 		if (decide) Object.assign(changes, {
 			final_finding: f.finding.value || null,

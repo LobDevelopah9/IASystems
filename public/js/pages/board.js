@@ -21,7 +21,9 @@ export async function render({ key, page, go, isCurrent }) {
 		: "Every Internal Affairs case, from intake to close");
 	if (can("case.create")) page.setActions(h("a", { class: "btn primary", href: "#/new" }, icon("plus"), "New Case"));
 
-	const filters = { q: "", status: review ? ["marked_for_review"] : [], kind: "", agent: "", from: "", to: "", subject: "", reporter: "", anonymous: "" };
+	const filters = { q: "", status: review ? ["marked_for_review"] : [], kind: "", agent: "", from: "", to: "", subject: "", reporter: "", anonymous: "", tag: "", source: "" };
+	const tagSelect = h("select", { class: "input", "aria-label": "Label" }, h("option", { value: "" }, "All labels"), (store.policy.tags || []).map(t => h("option", { value: t.key }, t.label)));
+	const sourceSelect = h("select", { class: "input", "aria-label": "Source" }, h("option", { value: "" }, "All records"), h("option", { value: "portal" }, "Portal cases"), h("option", { value: "legacy" }, "Imported (Trello)"));
 	let view = review ? "list" : readPref();
 	let agents = [];
 	let results = [];
@@ -29,7 +31,7 @@ export async function render({ key, page, go, isCurrent }) {
 	const statsEl = h("div", { class: "stats" });
 	const resultLine = h("div", { class: "result-line" });
 	const body = h("div");
-	const searchInput = h("input", { class: "input", type: "search", placeholder: "Search case #, ROBLOX/Discord username, violation, narrative…", "aria-label": "Search cases" });
+	const searchInput = h("input", { class: "input", type: "search", placeholder: "Search case #, 2M callsign, ROBLOX/Discord username, basis, punishment, report text…", "aria-label": "Search cases" });
 	const agentSelect = h("select", { class: "input", "aria-label": "Assigned agent" }, h("option", { value: "" }, "Any agent"), h("option", { value: "me" }, "Assigned to me"), h("option", { value: "unassigned" }, "Unassigned"));
 	const kindSelect = h("select", { class: "input", "aria-label": "Case type" }, h("option", { value: "" }, "All types"), h("option", { value: "misconduct" }, "Misconduct"), h("option", { value: "ops" }, "OPS / system"));
 	const from = h("input", { class: "input", type: "date", "aria-label": "Opened from" });
@@ -46,6 +48,7 @@ export async function render({ key, page, go, isCurrent }) {
 	const filterBar = h("div", { class: "filters" },
 		h("div", { class: "search" }, icon("search"), searchInput, h("kbd", null, "/")),
 		subject, reporter, kindSelect, agentSelect, from, to,
+		tagSelect, sourceSelect,
 		h("label", { class: "check" }, anon, "Anonymous only"),
 		review ? null : viewToggle);
 
@@ -79,6 +82,8 @@ export async function render({ key, page, go, isCurrent }) {
 	from.addEventListener("change", () => { filters.from = from.value; reload(); });
 	to.addEventListener("change", () => { filters.to = to.value; reload(); });
 	anon.addEventListener("change", () => { filters.anonymous = anon.checked ? "1" : ""; reload(); });
+	tagSelect.addEventListener("change", () => { filters.tag = tagSelect.value; reload(); });
+	sourceSelect.addEventListener("change", () => { filters.source = sourceSelect.value; reload(); });
 	const slash = event => {
 		if (!isCurrent()) return document.removeEventListener("keydown", slash);
 		if (event.key === "/" && !/input|textarea|select/i.test(document.activeElement?.tagName)) {
@@ -163,7 +168,9 @@ export async function render({ key, page, go, isCurrent }) {
 			const el = h("a", { class: "card", href: `#/cases/${c.ref}`, draggable: draggable ? "true" : "false" },
 				c.demo ? h("span", { class: "demo-flag" }, "DEMO") : null,
 				h("div", { class: "ref" }, `Case #${c.ref}`),
-				h("div", { class: "title" }, c.title),
+				h("div", { class: "title" }, c.subjectLine || c.title),
+				c.violations?.length ? h("div", { class: "basis" }, h("b", null, "Basis: "), c.violations.join(", ")) : null,
+				c.tags?.length ? h("div", { class: "labels" }, c.tags.map(t => h("span", { class: `label-chip ${t.color}` }, t.label))) : null,
 				h("div", { class: "meta" }, tags(c)),
 				h("div", { class: "foot" },
 					c.agent ? h("span", { class: "agent" }, avatar(c.agent, c.agentAvatar, "sm"), c.agent) : h("span", null, "Unassigned"),
@@ -217,8 +224,7 @@ export async function render({ key, page, go, isCurrent }) {
 export function tags(c) {
 	return [
 		c.kind === "ops" ? h("span", { class: "tag blue" }, "OPS") : null,
-		c.subject ? h("span", { class: "tag" }, icon("user"), c.subject.roblox || c.subject.callsign || c.subject.name) : null,
-		...(c.violations || []).slice(0, 2).map(v => h("span", { class: "tag" }, v)),
+		c.legacy ? h("span", { class: "tag", title: "Imported from the Trello board" }, icon("file"), "Imported") : null,
 		c.anonymous ? h("span", { class: "tag red", title: "Anonymous report: reporter hidden from the accused" }, icon("lock"), "Anon") : null,
 		c.aiState === "queued" || c.aiState === "drafting" ? h("span", { class: "tag violet" }, icon("bot"), c.aiState === "queued" ? "AI queued" : "Drafting") : null,
 		c.aiState === "failed" ? h("span", { class: "tag red" }, icon("bot"), "AI failed") : null,
@@ -226,6 +232,6 @@ export function tags(c) {
 		c.signatureState === "stale" ? h("span", { class: "tag red" }, icon("alert"), "Signature stale") : null,
 		c.appealPending ? h("span", { class: "tag violet" }, icon("flag"), "Appeal requested") : null,
 		c.ticketCount > 1 ? h("span", { class: "tag gold" }, icon("link"), `${c.ticketCount} tickets`) : null,
-		c.punishment ? h("span", { class: "tag gold" }, icon("scale"), c.punishment) : null
+		c.punishmentText || c.punishment ? h("span", { class: "tag gold", title: c.punishmentText || c.punishment }, icon("scale"), (c.punishmentText || c.punishment).slice(0, 48)) : null
 	];
 }

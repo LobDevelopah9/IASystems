@@ -13,7 +13,7 @@ export async function render({ params, page, go }) {
 		go("#/my");
 		return;
 	}
-	page.setTitle(`Case #${c.ref}`, c.title);
+	page.setTitle(`Case #${c.ref}`, c.subjectLine || c.title);
 	const actions = [];
 	if (c.permissions.canExport) actions.push(h("a", { class: "btn", href: `api/cases/${encodeURIComponent(c.ref)}/export.pdf`, download: `SAHP-IA-Case-${c.ref}.pdf`, title: "Export the Investigation Report as PDF (logged)" }, icon("file"), "Download PDF"));
 	if (c.permissions.canEdit) actions.push(h("a", { class: "btn", href: `#/cases/${encodeURIComponent(c.ref)}/edit` }, icon("edit"), "Edit case"));
@@ -34,15 +34,28 @@ function caseFile(c) {
 		c.signatureState === "valid" ? h("span", { class: "tag green" }, icon("pen"), "Signed") : null,
 		c.signatureState === "stale" ? h("span", { class: "tag red" }, icon("alert"), "Signature invalidated") : null,
 		c.demo ? h("span", { class: "tag" }, "Demo data") : null,
+		...(c.tags || []).map(t => h("span", { class: `label-chip ${t.color}` }, t.label)),
 		c.related.length ? h("span", { class: "tag gold" }, icon("link"), `Related: ${c.related.map(r => `#${r.ref}`).join(", ")}`) : null);
 
 	const review = h("article", { class: "casefile", dataset: { contained: "" } },
 		h("div", { class: "section" }, status),
-		decisionSection(c),
+		c.legacy ? legacySection(c) : decisionSection(c),
 		watermark());
 
 	wrap.append(review, investigationReport(c), analysis(c));
 	return wrap;
+}
+
+// Records imported from the Trello board: no AI draft or portal signature, but the original determination.
+function legacySection(c) {
+	return h("section", { class: "section" },
+		h("h3", { class: "section-title" }, icon("file"), "Imported investigation record"),
+		h("div", { class: "legacy-banner" }, icon("log"),
+			h("div", { class: "stack", style: { gap: "4px" } },
+				h("div", null, "This case was concluded before the portal and imported from the IA Trello board. It is read-only."),
+				c.report.punishmentsIssued ? h("div", null, h("b", null, "Issued punishment: "), c.report.punishmentsIssued) : null,
+				c.report.punishmentNotes ? h("div", null, h("b", null, "Notes: "), c.report.punishmentNotes) : null,
+				c.legacy.docUrl ? h("div", null, h("a", { href: c.legacy.docUrl, target: "_blank", rel: "noopener noreferrer" }, icon("link"), " Open the original Google Doc report")) : null)));
 }
 
 function kv(label, value) {
@@ -60,6 +73,7 @@ function investigationReport(c) {
 	const rp = c.report;
 	const n = c.narrative;
 	const reportDate = c.closedAt || c.approvedAt || c.createdAt;
+	const reportDateText = rp.reportDate || fmtDate(reportDate, false);
 	const evidence = rp.evidence.length ? h("ul", { class: "evidence" }, rp.evidence.map(e => h("li", null,
 		e.url ? h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer" }, icon("link"), e.label) : h("span", null, icon("file"), e.label),
 		e.ref ? h("button", { class: "cite", onclick: () => openTranscript(current, e.ref) }, e.ref) : null)))
@@ -67,7 +81,7 @@ function investigationReport(c) {
 
 	return h("article", { class: "report", dataset: { contained: "" } },
 		h("header", { class: "letterhead" },
-			h("div", { class: "lh-date" }, fmtDate(reportDate, false)),
+			h("div", { class: "lh-date" }, reportDateText),
 			h("img", { src: "img/ia-seal.png", alt: "" }),
 			h("div", { class: "lh-org" },
 				h("b", null, "The Office of Professional Standards"),
@@ -90,7 +104,7 @@ function investigationReport(c) {
 					: redacted("Anonymous"))),
 		h("div", { class: "fouo" }, "Confidential / For Official Use Only (FOUO)"),
 		h("h3", { class: "report-h" }, "Investigation Description"),
-		h("h4", { class: "report-sub" }, "Ticket Details", n.humanEdited ? h("span", { class: "tag" }, icon("edit"), "Edited") : h("span", { class: "tag violet" }, icon("bot"), "AI drafted")),
+		h("h4", { class: "report-sub" }, "Ticket Details", c.legacy ? h("span", { class: "tag" }, icon("file"), "Original report") : n.humanEdited ? h("span", { class: "tag" }, icon("edit"), "Edited") : h("span", { class: "tag violet" }, icon("bot"), "AI drafted")),
 		withCites(n.summary, n.sources.summary, "Not drafted yet."),
 		h("h4", { class: "report-sub" }, "Accused Trooper's Statement"),
 		withCites(n.interview, n.sources.interview, "No statement recorded."),
@@ -105,8 +119,10 @@ function investigationReport(c) {
 			kv("Interview Comments / Notes", rp.interviewNotes),
 			kv("Does the evidence support the allegation(s)", rp.evidenceSupports),
 			kv("Punishment(s) Issued", rp.punishmentsIssued || (c.final.punishmentLabel ? `${c.final.punishmentLabel} (draft, unsigned)` : null)),
-			kv("Date Investigation Was Closed", c.closedAt ? fmtDate(c.closedAt, false) : null),
+			kv("Date Investigation Was Closed", rp.closedDate || (c.closedAt ? fmtDate(c.closedAt, false) : null)),
+			rp.punishmentNotes ? kv("Punishment Notes", rp.punishmentNotes) : null,
 			kv("Investigation Approved & Processed By", rp.processedBy ? h("span", { class: "sig-inline" }, rp.processedBy) : null)),
+		c.legacy?.extra ? [h("h3", { class: "report-h" }, "Additional Record Notes"), h("div", { class: "prose" }, c.legacy.extra)] : null,
 		h("div", { class: "fouo" }, "Confidential / For Official Use Only (FOUO)"),
 		watermark());
 }
@@ -247,6 +263,7 @@ function sidebar(c, reload) {
 	return h("aside", { class: "side" },
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Actions")), h("div", { class: "panel-body" }, actions.childElementCount ? actions : h("div", { class: "muted small" }, "No actions available."))),
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Evidence · linked tickets")), h("div", { class: "panel-body" }, ticketList)),
+		keyPointsPanel(c, reload),
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Investigator notes")), h("div", { class: "panel-body stack" }, notes,
 			p.canNote ? h("div", { class: "stack", style: { gap: "8px" } }, noteInput, h("button", { class: "btn sm", onclick: async () => {
 				if (!noteInput.value.trim()) return;
@@ -255,6 +272,43 @@ function sidebar(c, reload) {
 			} }, "Add note")) : null)),
 		c.appeals.length ? h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Appeals")), h("div", { class: "panel-body stack", dataset: { contained: "" } },
 			c.appeals.map(a => h("div", { class: "note" }, h("header", null, h("b", null, a.status.toUpperCase()), h("span", null, ago(a.created_at))), h("p", null, a.reason))))) : null);
+}
+
+// Key points: short facts from the investigating officer that the AI must build the report on.
+function keyPointsPanel(c, reload) {
+	const editable = c.permissions.canEdit && !c.legacy;
+	let points = (c.keyPoints || []).map(p => ({ ...p }));
+	const list = h("ul", { class: "key-points", dataset: { contained: "" } });
+	const input = h("textarea", { class: "input", rows: 2, placeholder: "Add a key point, e.g. \"Accused admitted in T-0012 that he fired first\" or \"Reporter's clip shows 110 MPH on the HUD\"" });
+	input.style.minHeight = "56px";
+	const save = async next => {
+		const res = await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/key-points`, { method: "POST", body: { points: next.map(p => p.text) } }));
+		points = res.keyPoints;
+		draw();
+	};
+	function draw() {
+		clear(list, points.length ? points.map((p, i) => h("li", null,
+			h("span", null, p.text),
+			editable ? h("button", { class: "btn ghost sm", "aria-label": "Remove key point", onclick: () => save(points.filter((_, k) => k !== i)) }, icon("x")) : h("span"),
+			h("span", { class: "meta" }, `${p.author || "IA"} · ${ago(p.at)}`)))
+			: h("li", { class: "muted small" }, h("span", null, editable ? "No key points yet. Add the facts the report must cover; the AI will use every one." : "No key points.")));
+	}
+	draw();
+	return h("div", { class: "panel" },
+		h("div", { class: "panel-head" }, h("h3", null, "Key points for the report")),
+		h("div", { class: "panel-body stack" }, list,
+			editable ? h("div", { class: "stack", style: { gap: "8px" } }, input,
+				h("div", { class: "row" },
+					h("button", { class: "btn sm", onclick: async () => {
+						const text = input.value.trim();
+						if (!text) return;
+						await save([...points, { text }]);
+						input.value = "";
+					} }, icon("plus"), "Add key point"),
+					c.permissions.canRedraft && c.tickets.length ? h("button", { class: "btn sm ghost", title: "Redraft the report using these key points", onclick: async () => {
+						await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/redraft`, { method: "POST", body: {} }), "Queued for AI drafting with your key points");
+						reload();
+					} }, icon("bot"), "Redraft with key points") : null)) : null));
 }
 
 async function moveTo(c, to, reload) {

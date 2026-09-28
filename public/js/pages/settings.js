@@ -1,5 +1,5 @@
 import { h, clear, icon, api, toast, attempt, confirmDialog, ago } from "../lib.js";
-import { loadMe } from "../state.js";
+import { loadMe, store } from "../state.js";
 
 const ROLE_INFO = {
 	director: ["Head of Internal Affairs", "Full control: users, settings, reopening closed cases, plus everything below."],
@@ -15,13 +15,14 @@ export async function render({ page, params, isCurrent }) {
 	const body = h("div");
 	clear(page.content, tabs, body);
 
-	const TABS = [["system", "System status"], ["discord", "Discord & roles"], ["policy", "Punishment policy"]];
+	const TABS = [["system", "System status"], ["discord", "Discord & roles"], ["policy", "Punishment policy"], ...(store.owner ? [["import", "Import records"]] : [])];
 	async function show() {
 		clear(tabs, TABS.map(([key, label]) => h("button", { class: tab === key ? "on" : "", onclick: () => { tab = key; history.replaceState(null, "", `#/settings/${key}`); show(); } }, label)));
 		clear(body, h("div", { class: "skeleton", style: { height: "240px" } }));
 		if (tab === "system") await system();
 		if (tab === "discord") await discord();
 		if (tab === "policy") await policy();
+		if (tab === "import") importRecords();
 	}
 
 	async function system() {
@@ -61,6 +62,53 @@ export async function render({ page, params, isCurrent }) {
 						? `${s.demo.cases} demo cases and ${s.demo.tickets} demo tickets are loaded so the portal can be evaluated. Purge them before real cases go in.`
 						: "No demo data is loaded."),
 					s.demo.cases || s.demo.tickets ? h("div", null, h("button", { class: "btn danger", onclick: purge }, icon("x"), "Purge demo data")) : null)))));
+	}
+
+	// Owner-only import of past investigations. The file is prepared from the Trello board and its Google Doc reports.
+	function importRecords() {
+		let records = null;
+		const file = h("input", { type: "file", accept: "application/json,.json", class: "input" });
+		const info = h("div", { class: "muted small" }, "Choose sahp-ia-legacy-import.json.");
+		const result = h("div", { class: "stack" });
+		const preview = h("button", { class: "btn", disabled: true }, icon("search"), "Preview import");
+		const run = h("button", { class: "btn primary", disabled: true }, icon("check"), "Import records");
+		file.addEventListener("change", async () => {
+			records = null;
+			preview.disabled = run.disabled = true;
+			clear(result);
+			try {
+				const data = JSON.parse(await file.files[0].text());
+				records = Array.isArray(data) ? data : data.records;
+				if (!Array.isArray(records) || !records.length) throw new Error("No records found in this file");
+				info.textContent = `${records.length} records ready${data.source ? ` from ${data.source}` : ""}.`;
+				preview.disabled = false;
+			} catch (error) {
+				info.textContent = `Could not read the file: ${error.message}`;
+			}
+		});
+		const show = (res, dry) => clear(result, h("div", { class: "panel" }, h("div", { class: "panel-body stack" },
+			h("b", null, dry ? "Preview (nothing saved yet)" : "Import complete"),
+			h("div", null, `${res.created} new cases · ${res.updated} already imported and refreshed · ${res.withReport} with full report text · ${res.personnel} new personnel records`),
+			res.conflicts.length ? h("div", { class: "stale-banner" }, icon("alert"), h("div", null,
+				h("b", null, `${res.conflicts.length} case numbers were already taken `), "and will get a suffix: ",
+				res.conflicts.slice(0, 20).map(c => `#${String(c.caseNumber).padStart(4, "0")} → #${c.ref}`).join(", "),
+				". If a clash is with a test case, delete the test case and import again.")) : null)));
+		preview.addEventListener("click", async () => {
+			const res = await attempt(() => api("/import/legacy", { method: "POST", body: { records, dryRun: true } }));
+			show(res, true);
+			run.disabled = false;
+		});
+		run.addEventListener("click", async () => {
+			run.disabled = true;
+			const res = await attempt(() => api("/import/legacy", { method: "POST", body: { records } }));
+			show(res, false);
+			toast(`Imported ${res.created} cases (${res.updated} refreshed)`);
+		});
+		clear(body, h("div", { class: "stack", style: { maxWidth: "820px" } },
+			h("section", { class: "editor-section" }, h("h3", null, "Import past investigations"),
+				h("p", { class: "muted", style: { marginTop: 0 } }, "Adds concluded investigations from the IA Trello board as read-only case records, with their original case numbers, basis, punishments, labels, and the full report text where the Google Doc was readable. Running it again is safe: existing imports are refreshed, never duplicated, and report text an investigator has edited is kept."),
+				h("div", { class: "stack" }, file, info, h("div", { class: "row" }, preview, run))),
+			result));
 	}
 
 	async function purge() {

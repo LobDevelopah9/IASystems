@@ -55,7 +55,9 @@ test("closing a ticket drafts a report-style case in Marked for Review", async (
 		{ authorId: "999", authorName: "Bot", isBot: true, content: "Report received" },
 		{ authorId: "111111111111111111", authorName: "Secret Reporter", content: "I, Secret Reporter, saw Tpr. Test Subject speeding on Route 68. Clip: https://medal.tv/games/roblox/clips/abc123" }
 	]);
+	tickets.addEvent(t.id, "opened", { actorName: "Secret Reporter", detail: "Trooper report opened through the IA intake panel" });
 	const outcome = tickets.closeTicket(t.id, null, "done");
+	db.prepare("UPDATE cases SET key_points = ? WHERE ref = ?").run(JSON.stringify([{ text: "Clip reviewed: 112 MPH on the HUD", author: "IA" }]), outcome.caseRef);
 	assert.strictEqual(outcome.action, "created");
 
 	await pipeline.tick();
@@ -67,7 +69,10 @@ test("closing a ticket drafts a report-style case in Marked for Review", async (
 	assert.deepStrictEqual(JSON.parse(row.narrative_sources).summary, [`${t.ref}#2`], "invented refs are dropped");
 	assert.strictEqual(JSON.parse(row.narrative_excerpts).length, 1, "verbatim excerpt kept");
 	assert.ok(lastPrompt.includes("ANONYMOUS REPORT (reporter: Secret Reporter)"), "the report names the anonymous reporter for IA");
-	assert.ok(lastPrompt.includes("first person"), "style guide is in the prompt");
+	assert.ok(lastPrompt.includes("THIRD PERSON"), "third-person style guide is in the prompt");
+	assert.ok(lastPrompt.includes("INVESTIGATOR KEY POINTS"), "key points are in the prompt");
+	assert.ok(lastPrompt.includes("Clip reviewed: 112 MPH on the HUD"), "the key point text reaches the model");
+	assert.ok(lastPrompt.includes("Ticket events:") && lastPrompt.includes("closed the ticket"), "ticket events reach the model");
 	assert.ok(lastPrompt.includes("[REPORTING PARTY] Secret Reporter"), "authors are tagged with their role");
 	assert.ok(lastPrompt.includes("[BOT] Bot"), "bot lines are tagged");
 	assert.ok(lastPrompt.includes(" EST)"), "times are given in EST");

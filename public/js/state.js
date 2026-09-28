@@ -8,6 +8,7 @@ export async function loadMe() {
 	store.policy = data.policy;
 	store.counts = data.counts;
 	store.demo = data.demo;
+	store.owner = Boolean(data.owner);
 	return data;
 }
 

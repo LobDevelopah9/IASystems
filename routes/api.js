@@ -48,8 +48,9 @@ router.get("/me", (req, res) => {
 	res.json({
 		user: publicUser(req.user),
 		counts: { review: pending },
-		policy: { findings: policy.FINDINGS, punishments: policy.punishments(), classifications: policy.CLASSIFICATIONS, statuses: cases.STATUS_LABELS },
-		demo: Boolean(db.prepare("SELECT 1 FROM cases WHERE demo = 1 LIMIT 1").get())
+		policy: { findings: policy.FINDINGS, punishments: policy.punishments(), classifications: policy.CLASSIFICATIONS, tags: policy.TAGS, statuses: cases.STATUS_LABELS },
+		demo: Boolean(db.prepare("SELECT 1 FROM cases WHERE demo = 1 LIMIT 1").get()),
+		owner: isOwner(req.user)
 	});
 });
 
@@ -493,6 +494,17 @@ router.post("/system/ai-test", requireCap("settings.manage"), wrap(async (req, r
 	audit.record(req.user, "system.ai_test", { type: "system" }, { ok: result.ok, provider: result.provider, model: result.model }, req.ip);
 	res.json(result);
 }));
+
+// Owner-only import of past investigations (Trello board + Google Doc reports). Supports a dry run preview.
+router.post("/import/legacy", requireCap("settings.manage"), (req, res) => {
+	if (!isOwner(req.user)) throw cases.httpError(403, "Only owner accounts can import records");
+	const result = require("../lib/legacyImport").run(req.body?.records, req.user, { dryRun: Boolean(req.body?.dryRun) });
+	res.json(result);
+});
+
+router.post("/cases/:ref/key-points", requireCap("case.edit"), (req, res) => {
+	res.json({ keyPoints: cases.setKeyPoints(req.params.ref, req.body?.points, req.user) });
+});
 
 router.post("/system/purge-demo", requireCap("settings.manage"), (req, res) => {
 	if (req.body?.confirm !== "PURGE DEMO DATA") throw cases.httpError(400, "Type PURGE DEMO DATA to confirm");

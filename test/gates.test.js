@@ -253,3 +253,59 @@ test("PDF export is limited to IA_EXPORT_DISCORD_IDS and is audited", async () =
 	await get(trooper, "/api/cases/9003/export.pdf").expect(403);
 	config.EXPORT_DISCORD_IDS.pop();
 });
+
+test("legacy import: owner-only, dry run, idempotent, keeps original numbers, read-only records", async () => {
+	const config = require("../lib/config");
+	const records = [
+		{ legacyId: "aaaaaaaaaaaa0001", caseNumber: 604, title: "SGT | 2M-418 | lumincrests", status: "closed", classification: "Standard Officer Report",
+			violations: ["Unprofessionalism", "Improper Usage of Radio Communications"], tags: ["ticket_investigation", "notes_attached"],
+			subject: { roblox: "lumincrests", rank: "SGT", callsign: "2M-418", discord: "lumin" }, accuser: { roblox: "SomeTrooper", discord: "some" },
+			investigators: "BLUEFAMILY227", processedBy: "BLUEFAMILY227", punishmentText: "X1 Blackmark, 48 Hour Suspension, Extension of Administrative Watch (By 3 Weeks)",
+			punishmentNotes: "Blackmark is appealable in 30 days.", supports: "YES", reportDate: "Mar 1, 2026", closedDate: "Mar 2, 2026",
+			docUrl: "https://docs.google.com/document/d/11pBHLthuil6u4DQpnXxISRc8LORpvJIoQysDjQb6PBM/edit",
+			report: { ticketDetails: "On Mar 1, 2026 a ticket was opened.", statement: "The accused stated...", conclusion: "Sustained.", interviewPresent: "A, B",
+				evidence: [{ label: "Exhibit A", url: "https://medal.tv/x" }, { label: "bad", url: "javascript:alert(1)" }] } },
+		{ legacyId: "aaaaaaaaaaaa0002", caseNumber: 604, title: "PT | 2M-001 | secondaccused", status: "closed", violations: ["Unprofessionalism"],
+			subject: { roblox: "secondaccused", rank: "PT" }, punishmentText: "Termination, and Blacklist." }
+	];
+	const director = await agent(IDS.director);
+	await post(director, "/api/import/legacy", { records, dryRun: true }).expect(403);
+	config.OWNER_DISCORD_IDS.push(IDS.director);
+	const dry = await post(director, "/api/import/legacy", { records, dryRun: true }).expect(200);
+	assert.strictEqual(dry.body.dryRun, true);
+	assert.strictEqual(dry.body.created, 2);
+	assert.strictEqual(db.prepare("SELECT COUNT(*) AS n FROM cases WHERE legacy_source = 'trello'").get().n, 0, "dry run saves nothing");
+	const real = await post(director, "/api/import/legacy", { records }).expect(200);
+	assert.strictEqual(real.body.created, 2);
+	assert.deepStrictEqual(real.body.conflicts.map(c => c.ref), ["0604-B"], "second accused on the same case number gets a suffix");
+	const again = await post(director, "/api/import/legacy", { records }).expect(200);
+	assert.strictEqual(again.body.created, 0);
+	assert.strictEqual(again.body.updated, 2, "re-import refreshes instead of duplicating");
+
+	const view = await get(director, "/api/cases/0604").expect(200);
+	const c = view.body.case;
+	assert.strictEqual(c.status, "closed");
+	assert.strictEqual(c.subjectLine, "SGT | 2M-418 | lumincrests");
+	assert.deepStrictEqual(c.tags.map(t => t.key), ["ticket_investigation", "notes_attached"]);
+	assert.match(c.report.punishmentsIssued, /48 Hour Suspension/);
+	assert.strictEqual(c.report.processedBy, "BLUEFAMILY227");
+	assert.strictEqual(c.report.evidence.length, 1, "unsafe evidence URLs are dropped");
+	assert.strictEqual(c.legacy.source, "trello");
+	assert.strictEqual(c.permissions.canEdit, false, "imported records are read-only");
+	const termination = await get(director, "/api/cases/0604-B").expect(200);
+	assert.match(termination.body.case.final.punishment, /termination/);
+	assert.match(termination.body.case.final.punishment, /blacklist/);
+	const search = await get(director, "/api/cases?q=lumincrests").expect(200);
+	assert.ok(search.body.cases.some(x => x.ref === "0604"));
+	const tagged = await get(director, "/api/cases?tag=notes_attached").expect(200);
+	assert.ok(tagged.body.cases.some(x => x.ref === "0604"));
+	config.OWNER_DISCORD_IDS.pop();
+});
+
+test("key points: IA staff can set them, subjects and troopers cannot", async () => {
+	const a = await agent(IDS.investigator);
+	const res = await post(a, "/api/cases/9002/key-points", { points: ["Whitaker confirmed the 3 Sep remark", "  ", "Radio logs requested"] }).expect(200);
+	assert.deepStrictEqual(res.body.keyPoints.map(p => p.text), ["Whitaker confirmed the 3 Sep remark", "Radio logs requested"]);
+	const trooper = await agent(IDS.trooperCortez);
+	await post(trooper, "/api/cases/9002/key-points", { points: ["x"] }).expect(403);
+});

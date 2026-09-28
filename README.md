@@ -23,6 +23,14 @@ Every case renders as the OPS paper format used before the portal (see Case #064
 * **Evidence links** (Medal, YouTube, Streamable, and similar) and uploaded files are pulled from the transcripts automatically, never from the AI.
 * **One accused per case.** When a report names several troopers, open one case per accused on the same tickets. The cases are cross-linked as related cases, and each trooper keeps their own record, determination, and appeal.
 
+## Labels, key points, and imported records
+
+* **Labels** mirror the old Trello board: Ticket Investigation, Notes Attached, Risk Of Termination, Discussing Investigation, Halted Investigation. Set them in the case editor and filter the board by them.
+* **Key points** (case sidebar) are short facts from the investigating officer. The drafting AI must incorporate every key point, so add them before clicking **Redraft with key points**.
+* **Imported records**: past investigations from the IA Trello board are imported as closed, read-only cases with their original case numbers, basis, punishments, labels, and (where the Google Doc was readable) the full report. Owners import from **Settings → Import records**. Re-running is safe and refreshes existing imports.
+
+AI drafts are written in the third person to a court-ready standard. They account for every participant, ticket event (opened, member added, linked, closed), request, response, and piece of evidence. Drafts in the first person are rejected and retried automatically.
+
 ## Case lifecycle
 
 ```
