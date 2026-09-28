@@ -2,7 +2,7 @@
 
 The code, hosting, database volume, domain, and base configuration are done. These are the steps only you can do, because they need your Discord and Google/Groq accounts. Allow about 30 minutes.
 
-**Portal URL:** https://iasystems-production.up.railway.app
+**Portal URL:** https://sandyshores.dev/sahp/opr/ia/ (served through the Sandy Moderation Panel; the raw Railway domain returns 404)
 **Railway project:** IA Systems (SAHP) → service `IASystems` → **Variables** tab
 
 ---
@@ -16,7 +16,7 @@ One application serves both the IA bot and "Sign in with Discord".
 3. **OAuth2** → **Client Secret** → **Reset Secret** → copy it.
 4. **OAuth2** → **Redirects** → **Add Redirect**, paste exactly this, then save:
    ```
-   https://iasystems-production.up.railway.app/auth/callback
+   https://sandyshores.dev/sahp/opr/ia/auth/callback
    ```
 5. **Bot** → **Reset Token** → copy the bot token.
 6. On the same **Bot** page, under **Privileged Gateway Intents**, turn on:
@@ -69,7 +69,7 @@ Railway redeploys automatically after you save.
 
 ## 5. Invite the bot
 
-Sign in at https://iasystems-production.up.railway.app with Discord. As an owner, you land on the board as Head of IA.
+Sign in at https://sandyshores.dev/sahp/opr/ia/ with Discord. As an owner, you land on the board as Head of IA.
 
 Go to **Settings → System status** and click **Invite the bot to the SAHP server**. Keep all requested permissions. The bot needs Manage Channels and Manage Roles to create private ticket channels.
 

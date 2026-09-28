@@ -13,7 +13,7 @@ export async function render({ page, isCurrent }) {
 	function caseCard(c) {
 		return h("article", { class: "casefile", dataset: { contained: "" } },
 			h("header", { class: "casefile-head" },
-				h("div", { class: "strip" }, h("img", { src: "/img/ia-seal.png", alt: "" }), "Office of Professional Standards · Notice of Determination"),
+				h("div", { class: "strip" }, h("img", { src: "img/ia-seal.png", alt: "" }), "Office of Professional Standards · Notice of Determination"),
 				h("h2", null, c.title),
 				h("div", { class: "row" }, h("span", { class: "ref-big" }, `Case #${c.ref}`), statusPill(c.status)),
 				c.violations?.length ? h("div", { class: "muted small", style: { marginTop: "6px" } }, `Violations: ${c.violations.join(", ")}`) : null),

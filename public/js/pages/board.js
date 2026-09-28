@@ -130,7 +130,7 @@ export async function render({ key, page, go, isCurrent }) {
 				h("td", null, statusPill(c.status)),
 				h("td", null, c.aiPunishment ? h("div", null, c.aiPunishment.label, h("div", { class: "muted small" }, findingLabel(c.aiPunishment.finding))) : h("span", { class: "muted" }, "-")),
 				h("td", null, c.punishment || h("span", { class: "muted" }, "Pending")),
-				h("td", null, c.agent || h("span", { class: "muted" }, "Unassigned")),
+				h("td", null, c.agent ? h("span", { class: "agent row", style: { gap: "8px", flexWrap: "nowrap" } }, avatar(c.agent, c.agentAvatar, "sm"), c.agent) : h("span", { class: "muted" }, "Unassigned")),
 				h("td", { class: "muted small" }, ago(c.updatedAt)))))));
 	}
 
@@ -166,7 +166,7 @@ export async function render({ key, page, go, isCurrent }) {
 				h("div", { class: "title" }, c.title),
 				h("div", { class: "meta" }, tags(c)),
 				h("div", { class: "foot" },
-					c.agent ? h("span", { class: "agent" }, avatar(c.agent, null, "sm"), c.agent) : h("span", null, "Unassigned"),
+					c.agent ? h("span", { class: "agent" }, avatar(c.agent, c.agentAvatar, "sm"), c.agent) : h("span", null, "Unassigned"),
 					h("span", { class: "spacer" }),
 					h("span", { title: new Date(c.updatedAt).toLocaleString() }, ago(c.updatedAt))));
 			el.addEventListener("dragstart", event => {

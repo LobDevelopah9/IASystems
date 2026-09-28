@@ -12,6 +12,7 @@ const pipeline = require("../lib/pipeline");
 const audit = require("../lib/audit");
 const ai = require("../lib/ai");
 const bot = require("../lib/bot");
+const { detectType, ALLOWED } = require("../lib/filetype");
 
 const router = express.Router();
 const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -254,14 +255,24 @@ router.get("/attachments/:id", requireCap("ticket.view"), (req, res) => {
 	if (!file?.stored_path) throw cases.httpError(404, "Attachment not stored");
 	const subject = file.subject_personnel_id ? db.prepare("SELECT discord_id FROM personnel WHERE id = ?").get(file.subject_personnel_id) : null;
 	if (subject?.discord_id === req.user.discord_id && !isOwner(req.user)) throw cases.httpError(404, "Attachment not stored");
+	// Path traversal: the stored path must resolve strictly inside the attachments directory.
+	const root = path.resolve(config.DATA_DIR, "attachments");
 	const full = path.resolve(config.DATA_DIR, file.stored_path);
-	if (!full.startsWith(path.resolve(config.DATA_DIR)) || !fs.existsSync(full)) throw cases.httpError(404, "Attachment missing");
+	const rel = path.relative(root, full);
+	if (!rel || rel.startsWith("..") || path.isAbsolute(rel) || !fs.existsSync(full)) throw cases.httpError(404, "Attachment missing");
+	// Type is re-checked from the bytes on disk; only allow-listed raster/video/audio types are ever served.
+	const fd = fs.openSync(full, "r");
+	const head = Buffer.alloc(64);
+	fs.readSync(fd, head, 0, 64, 0);
+	fs.closeSync(fd);
+	const type = detectType(head);
+	if (!type || !ALLOWED.has(type)) throw cases.httpError(415, "This file type cannot be viewed in the portal");
 	audit.record(req.user, "ticket.attachment_view", { type: "ticket", ref: file.ticket_ref }, { attachment: file.id }, req.ip);
-	const inline = /^(image|video|audio)\//.test(file.content_type || "");
-	res.set("Content-Type", inline ? file.content_type : "application/octet-stream");
-	res.set("Content-Disposition", inline ? "inline" : "attachment; filename=\"blocked\"");
+	res.set("Content-Type", type);
+	res.set("Content-Disposition", "inline");
 	res.set("X-Content-Type-Options", "nosniff");
-	if (!inline) throw cases.httpError(415, "Only images, video, and audio can be viewed in the portal");
+	res.set("Content-Security-Policy", "default-src 'none'; img-src 'self'; media-src 'self'; sandbox");
+	res.set("Cross-Origin-Resource-Policy", "same-origin");
 	fs.createReadStream(full).pipe(res);
 });
 

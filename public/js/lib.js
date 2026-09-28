@@ -82,14 +82,14 @@ export function icon(name, cls = "") {
 // --- API -----------------------------------------------------------------------------
 
 export async function api(path, { method = "GET", body } = {}) {
-	const response = await fetch(`/api${path}`, {
+	const response = await fetch(`api${path}`, {
 		method,
 		credentials: "same-origin",
 		headers: { "X-IA-Request": "1", ...(body !== undefined ? { "Content-Type": "application/json" } : {}) },
 		body: body !== undefined ? JSON.stringify(body) : undefined
 	});
 	if (response.status === 401) {
-		location.href = "/";
+		location.href = "./";
 		throw new Error("Signed out");
 	}
 	const data = await response.json().catch(() => ({}));
@@ -213,7 +213,15 @@ export function initials(name) {
 }
 
 export function avatar(name, url, cls = "") {
-	return h("span", { class: `avatar ${cls}` }, url ? h("img", { src: url, alt: "" }) : initials(name));
+	const el = h("span", { class: `avatar ${cls}`, title: name || "" });
+	if (url && /^https:\/\/cdn\.discordapp\.com\//.test(url)) {
+		const img = h("img", { src: url, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+		img.addEventListener("error", () => clear(el, initials(name)));
+		el.append(img);
+	} else {
+		el.append(initials(name));
+	}
+	return el;
 }
 
 export const STATUS = {

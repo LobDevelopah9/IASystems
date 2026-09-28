@@ -15,7 +15,7 @@ export async function render({ params, page, go }) {
 	}
 	page.setTitle(`Case #${c.ref}`, c.title);
 	const actions = [];
-	if (c.permissions.canExport) actions.push(h("a", { class: "btn", href: `/api/cases/${encodeURIComponent(c.ref)}/export.pdf`, download: `SAHP-IA-Case-${c.ref}.pdf`, title: "Export the Investigation Report as PDF (logged)" }, icon("file"), "Download PDF"));
+	if (c.permissions.canExport) actions.push(h("a", { class: "btn", href: `api/cases/${encodeURIComponent(c.ref)}/export.pdf`, download: `SAHP-IA-Case-${c.ref}.pdf`, title: "Export the Investigation Report as PDF (logged)" }, icon("file"), "Download PDF"));
 	if (c.permissions.canEdit) actions.push(h("a", { class: "btn", href: `#/cases/${encodeURIComponent(c.ref)}/edit` }, icon("edit"), "Edit case"));
 	if (c.permissions.canSign) actions.push(h("button", { class: "btn primary", onclick: () => openSignModal(c, reload) }, icon("pen"), "Sign & approve"));
 	page.setActions(...actions);
@@ -68,7 +68,7 @@ function investigationReport(c) {
 	return h("article", { class: "report", dataset: { contained: "" } },
 		h("header", { class: "letterhead" },
 			h("div", { class: "lh-date" }, fmtDate(reportDate, false)),
-			h("img", { src: "/img/ia-seal.png", alt: "" }),
+			h("img", { src: "img/ia-seal.png", alt: "" }),
 			h("div", { class: "lh-org" },
 				h("b", null, "The Office of Professional Standards"),
 				h("span", null, "Division of Internal Affairs"),
@@ -356,11 +356,11 @@ export async function openTranscript(c, citeRef, highlight = true) {
 	}
 }
 
-export function renderTranscript(body, data, highlightSeq, attachmentBase = "/api/attachments/") {
+export function renderTranscript(body, data, highlightSeq, attachmentBase = "api/attachments/") {
 	const intake = Object.entries(data.intake || {});
 	const list = data.messages.map(m => {
 		const el = h("div", { class: `msg${m.authorRole === "bot" ? " bot" : ""}${m.seq === highlightSeq ? " hl" : ""}`, id: `msg-${m.seq}` },
-			avatar(m.author),
+			avatar(m.author, m.avatar),
 			h("div", null,
 				h("header", null, h("b", { class: m.authorRole === "reporter" ? "role-reporter" : "" }, m.author), h("span", { class: "seq" }, m.ref), h("time", null, fmtDate(m.createdAt))),
 				h("div", { class: "body" }, m.content || h("span", { class: "muted" }, "(no text)")),

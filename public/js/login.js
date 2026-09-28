@@ -2,27 +2,28 @@
 	const messages = {
 		oauth_not_configured: "Discord sign-in has not been configured yet. An administrator needs to set the Discord client ID and secret.",
 		discord_denied: "Discord sign-in was cancelled.",
-		state: "Your sign-in link expired. Please try again.",
+		state: "Your sign-in session expired or was started in another browser. Please try again.",
 		token: "Discord did not accept the sign-in. Please try again.",
 		profile: "Could not read your Discord profile. Please try again.",
 		not_member: "You must be a member of the SAHP Discord server to use this system.",
 		no_role: "Your Discord roles do not grant access to the Internal Affairs portal.",
 		suspended: "Your portal access has been suspended. Contact the Head of Internal Affairs.",
-		login_failed: "Sign-in failed. Please try again in a moment."
+		login_failed: "Sign-in failed. Please try again in a moment.",
+		mfa_required: "Internal Affairs staff must have two-factor authentication enabled on their Discord account. Turn it on in Discord (User Settings → My Account → Enable Authenticator App), then sign in again."
 	};
 	const code = new URLSearchParams(location.search).get("error");
 	if (code) {
 		const el = document.getElementById("error");
 		el.textContent = messages[code] || "Sign-in failed.";
 		el.classList.remove("hidden");
-		history.replaceState(null, "", "/");
+		history.replaceState(null, "", location.pathname);
 	}
 	if (window.IA_CONFIG && window.IA_CONFIG.devLogin) {
-		fetch("/auth/dev-users").then(r => r.json()).then(users => {
+		fetch("auth/dev-users").then(r => r.json()).then(users => {
 			const box = document.getElementById("dev-users");
 			users.forEach(u => {
 				const a = document.createElement("a");
-				a.href = `/auth/dev?as=${encodeURIComponent(u.id)}`;
+				a.href = `auth/dev?as=${encodeURIComponent(u.id)}`;
 				const name = document.createElement("span");
 				name.textContent = u.name;
 				const role = document.createElement("span");

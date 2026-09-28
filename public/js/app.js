@@ -63,7 +63,7 @@ function renderShell() {
 	root = clear(document.getElementById("root"),
 		h("div", { class: "shell" },
 			h("aside", { class: "sidebar" },
-				h("a", { class: "brand", href: "#/" }, h("img", { src: "/img/ia-seal.png", alt: "" }),
+				h("a", { class: "brand", href: "#/" }, h("img", { src: "img/ia-seal.png", alt: "" }),
 					h("div", null, h("b", null, "SAHP · IA"), h("span", null, "Professional Standards"))),
 				navEl,
 				h("div", { class: "me" },
@@ -101,8 +101,8 @@ function renderNav(active) {
 }
 
 async function logout() {
-	await fetch("/auth/logout", { method: "POST", headers: { "X-IA-Request": "1" } }).catch(() => {});
-	location.href = "/";
+	await fetch("auth/logout", { method: "POST", headers: { "X-IA-Request": "1" } }).catch(() => {});
+	location.href = "./";
 }
 
 let routeToken = 0;
@@ -150,7 +150,7 @@ async function boot() {
 	try {
 		await loadMe();
 	} catch (error) {
-		if (error.status === 403) location.href = "/?error=no_role";
+		if (error.status === 403) location.href = "./?error=no_role";
 		return;
 	}
 	setViewer({ name: store.me.displayName, id: store.me.id });
