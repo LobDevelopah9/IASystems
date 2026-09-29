@@ -77,6 +77,7 @@ function investigationReport(c) {
 	const reportDateText = rp.reportDate || fmtDate(reportDate, false);
 	const evidence = rp.evidence.length ? h("ul", { class: "evidence" }, rp.evidence.map(e => h("li", null,
 		e.url ? h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer" }, icon("link"), e.label) : h("span", null, icon("file"), e.label),
+		archiveBadge(c, e.url),
 		e.ref ? h("button", { class: "cite", onclick: () => openTranscript(current, e.ref) }, e.ref) : null)))
 		: h("div", { class: "prose empty-text" }, "No evidence listed.");
 
@@ -279,6 +280,7 @@ function sidebar(c, reload) {
 	return h("aside", { class: "side" },
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Actions")), h("div", { class: "panel-body" }, actions.childElementCount ? actions : h("div", { class: "muted small" }, "No actions available."))),
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Evidence · linked tickets")), h("div", { class: "panel-body" }, ticketList)),
+		evidenceArchivePanel(c, reload),
 		keyPointsPanel(c, reload),
 		h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h3", null, "Investigator notes")), h("div", { class: "panel-body stack" }, notes,
 			p.canNote ? h("div", { class: "stack", style: { gap: "8px" } }, noteInput, h("button", { class: "btn sm", onclick: async () => {
@@ -291,6 +293,81 @@ function sidebar(c, reload) {
 }
 
 // Key points: short facts from the investigating officer that the AI must build the report on.
+// --- Evidence archive -------------------------------------------------------------------------
+
+const ARCHIVE_STATUS = {
+	archived: ["Archived", "green"],
+	metadata: ["Details saved", "blue"],
+	queued: ["Archiving…", "gold"],
+	failed: ["Not archived", "red"],
+	unsupported: ["Link only", ""]
+};
+
+function archiveBadge(c, url) {
+	const item = url && (c.archive || []).find(a => a.url === url.trim());
+	if (!item) return null;
+	if (item.sourceStatus === "dead") return h("span", { class: "tag red", title: `Source removed ${fmtDate(item.sourceDeadAt)}` }, item.hasFile ? "Source removed · copy kept" : "Source removed");
+	return item.hasFile ? h("span", { class: "tag green", title: `SHA-256 ${item.sha256}` }, icon("lock"), "Archived") : null;
+}
+
+const fmtSize = n => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+function viewEvidence(item) {
+	const src = `api/evidence/${item.id}/file`;
+	const media = item.contentType?.startsWith("video/")
+		? h("video", { src, controls: true, preload: "metadata", class: "evidence-media" })
+		: item.contentType?.startsWith("audio/")
+			? h("audio", { src, controls: true, class: "evidence-media" })
+			: h("img", { src, alt: item.title || "Archived evidence", class: "evidence-media" });
+	drawer({
+		title: item.title || "Archived evidence",
+		subtitle: [item.provider, item.ref, item.postedBy && `posted by ${item.postedBy}`].filter(Boolean).join(" · "),
+		body: h("div", { class: "stack" },
+			media,
+			h("dl", { class: "facts-dl" },
+				h("dt", null, "Original"), h("dd", null, h("a", { href: item.url, target: "_blank", rel: "noopener noreferrer" }, item.url)),
+				h("dt", null, "Archived"), h("dd", null, fmtDate(item.archivedAt)),
+				h("dt", null, "Size"), h("dd", null, item.size ? fmtSize(item.size) : "-"),
+				h("dt", null, "Type"), h("dd", null, item.contentType || "-"),
+				h("dt", null, "SHA-256"), h("dd", { class: "mono small hash" }, item.sha256),
+				h("dt", null, "Source"), h("dd", null, item.sourceStatus === "dead" ? h("span", { class: "tag red" }, `Removed · noticed ${fmtDate(item.sourceDeadAt)}`) : item.sourceCheckedAt ? `Still online · checked ${ago(item.sourceCheckedAt)}` : "Not checked yet")),
+			h("p", { class: "muted small" }, "The SHA-256 fingerprint was taken when the file was archived. Any copy with the same fingerprint is byte-for-byte identical to what was reported."))
+	});
+}
+
+function evidenceArchivePanel(c, reload) {
+	const items = c.archive || [];
+	const removed = items.filter(i => i.sourceStatus === "dead");
+	const list = items.length
+		? h("div", { class: "stack", style: { gap: "8px" } }, items.map(item => {
+			const [label, tone] = ARCHIVE_STATUS[item.status] || ["", ""];
+			const thumb = item.hasThumb
+				? h("img", { src: `api/evidence/${item.id}/thumb`, alt: "", class: "ev-thumb", loading: "lazy" })
+				: h("span", { class: "ev-thumb ev-icon" }, icon(item.contentType?.startsWith("video/") ? "eye" : item.hasFile ? "file" : "link"));
+			const open = item.hasFile ? () => viewEvidence(item) : null;
+			return h("div", { class: `ev-item${item.sourceStatus === "dead" ? " dead" : ""}` },
+				item.hasFile && item.contentType?.startsWith("image/") ? h("img", { src: `api/evidence/${item.id}/file`, alt: "", class: "ev-thumb", loading: "lazy" }) : thumb,
+				h("div", { style: { minWidth: 0, flex: 1 } },
+					h("div", { class: "small ev-title", title: item.url }, item.title || item.url.replace(/^https?:\/\//, "").slice(0, 60)),
+					h("div", { class: "row", style: { gap: "6px", marginTop: "3px" } },
+						h("span", { class: `tag ${tone}`, title: item.error || "" }, label),
+						item.sourceStatus === "dead" ? h("span", { class: "tag red" }, "Source removed") : null,
+						h("span", { class: "muted small" }, [item.ref, item.size && fmtSize(item.size)].filter(Boolean).join(" · ")))),
+				open ? h("button", { class: "btn sm", "aria-label": "View archived copy", onclick: open }, icon("eye")) : h("a", { class: "btn sm ghost", href: item.url, target: "_blank", rel: "noopener noreferrer", "aria-label": "Open original link" }, icon("link")));
+		}))
+		: h("div", { class: "muted small" }, "No clips or evidence links found in this case's tickets or evidence list.");
+	return h("div", { class: "panel" },
+		h("div", { class: "panel-head" }, h("h3", null, "Evidence archive"), h("div", { class: "spacer" }),
+			c.permissions?.canEdit ? h("button", { class: "btn sm ghost", title: "Look for new links and retry failed ones", onclick: async () => {
+				const r = await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/archive`, { method: "POST", body: {} }));
+				toast(r.added || r.retried ? `Archiving ${r.added} new and retrying ${r.retried} item(s)` : "Nothing new to archive");
+				setTimeout(reload, 1500);
+			} }, icon("refresh"), "Archive now") : null),
+		h("div", { class: "panel-body stack", style: { gap: "10px" } },
+			removed.length ? h("div", { class: "stale-banner" }, icon("alert"), `${removed.length} evidence source${removed.length > 1 ? "s were" : " was"} removed after being reported.${removed.some(r => r.hasFile) ? " Archived copies are preserved." : ""}`) : null,
+			list));
+}
+
 function keyPointsPanel(c, reload) {
 	const editable = c.permissions.canEdit && !c.legacy;
 	let points = (c.keyPoints || []).map(p => ({ ...p }));

@@ -553,3 +553,12 @@ table.table { width: 100%; border-collapse: collapse; }
 .facts-dl dt { color: var(--muted); }
 .facts-dl dd { margin: 0; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+/* Evidence archive */
+.ev-item { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-2); }
+.ev-item.dead { border-color: rgba(229, 83, 75, 0.45); }
+.ev-thumb { width: 44px; height: 44px; border-radius: 6px; object-fit: cover; flex: none; background: var(--panel-3); border: 1px solid var(--line-2); }
+.ev-icon { display: grid; place-items: center; color: var(--muted); }
+.ev-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evidence-media { width: 100%; max-height: 60vh; border-radius: 8px; background: #000; border: 1px solid var(--line-2); object-fit: contain; }
+.hash { overflow-wrap: anywhere; }

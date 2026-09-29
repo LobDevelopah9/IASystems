@@ -297,6 +297,36 @@ router.get("/attachments/:id", requireCap("ticket.view"), (req, res) => {
 	fs.createReadStream(full).pipe(res);
 });
 
+// Archived evidence (clips, screenshots, expiring Discord links). Served only to IA staff with access to a linked case.
+router.get("/evidence/:id/:which(file|thumb)", requireCap("case.view"), (req, res) => {
+	const evidence = require("../lib/evidence");
+	const linked = evidence.casesFor(req.params.id);
+	if (!linked.some(row => cases.accessLevel(req.user, row) === "ia")) throw cases.httpError(404, "Evidence not found");
+	const file = evidence.fileFor(req.params.id, req.params.which);
+	if (!file) throw cases.httpError(404, "Evidence file not stored");
+	if (req.params.which === "file" && !req.headers.range) {
+		audit.record(req.user, "evidence.view", { type: "evidence", ref: String(file.row.id) }, { url: file.row.url, sha256: file.row.sha256 }, req.ip);
+	}
+	res.sendFile(file.full, {
+		acceptRanges: true,
+		headers: {
+			"Content-Type": file.type,
+			"Content-Disposition": "inline",
+			"X-Content-Type-Options": "nosniff",
+			"Content-Security-Policy": "default-src 'none'; img-src 'self'; media-src 'self'; sandbox",
+			"Cross-Origin-Resource-Policy": "same-origin",
+			"Cache-Control": "private, max-age=3600"
+		}
+	});
+});
+
+router.post("/cases/:ref/archive", requireCap("case.edit"), (req, res) => {
+	const row = cases.requireCase(req.params.ref);
+	if (cases.accessLevel(req.user, row) !== "ia") throw cases.httpError(404, "Case not found");
+	if (!cases.casePermissions(req.user, row).canEdit) throw cases.httpError(403, "You cannot change this case");
+	res.json(require("../lib/evidence").archiveNow(row.id, req.user, req.ip));
+});
+
 // --- Personnel -------------------------------------------------------------------------
 
 router.get("/personnel", requireCap("case.view"), (req, res) => {

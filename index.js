@@ -12,6 +12,7 @@ const server = app.listen(config.PORT, () => {
 });
 
 pipeline.start();
+require("./lib/evidence").start();
 bot.start();
 
 function shutdown(signal) {
