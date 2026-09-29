@@ -11,6 +11,7 @@ const pages = {
 	users: () => import("./pages/users.js"),
 	audit: () => import("./pages/audit.js"),
 	settings: () => import("./pages/settings.js"),
+	personnel: () => import("./pages/personnel.js"),
 	my: () => import("./pages/my.js")
 };
 
@@ -20,6 +21,7 @@ const NAV = [
 	{ key: "review", label: "Review Queue", icon: "review", cap: "case.decide", count: () => store.counts.review },
 	{ key: "tickets", label: "Ticket Inbox", icon: "inbox", cap: "ticket.view" },
 	{ key: "new", label: "New Case", icon: "plus", cap: "case.create" },
+	{ key: "personnel", label: "Personnel Files", icon: "file", cap: "personnel.dossier" },
 	{ section: "Administration", cap: "users.view" },
 	{ key: "users", label: "Users & Agents", icon: "users", cap: "users.view" },
 	{ key: "audit", label: "Audit Log", icon: "log", cap: "audit.view" },

@@ -163,6 +163,7 @@ export async function render({ page, params, isCurrent }) {
 					await attempt(() => api("/settings/discord", { method: "PUT", body: { guildId: guild.value.trim(), ticketCategoryId: category.value.trim(), logChannelId: log.value.trim() } }), "Discord settings saved");
 					show();
 				} }, "Save server settings"))),
+			fileSources(s, channels),
 			h("section", { class: "editor-section" }, h("h3", null, "Role mapping"),
 				h("p", { class: "muted small", style: { marginTop: 0 } }, "Portal access follows these Discord roles. A member gets the highest portal role any of their Discord roles maps to. Changes sync to every member immediately. Individual overrides live on the Users page."),
 				h("div", { class: "stack" }, roleEditors),
@@ -218,4 +219,37 @@ export async function render({ page, params, isCurrent }) {
 	}
 
 	await show();
+
+// Channels the bot reads when an IA supervisor pulls a personnel file.
+const FILE_SOURCES = [
+	["disciplineChannelIds", "Discipline log", "Posts that name or mention the member become their discipline history."],
+	["promotionChannelIds", "Promotion log", "Used for promotion history, time in grade, and the last promotion date."],
+	["commendationChannelIds", "Commendations", "Awards, shout-outs, and recognition posts."],
+	["leaveChannelIds", "Leave of absence", "LOA and inactivity notices."],
+	["scanChannelIds", "Message scan", "Channels searched for the member's own messages. Leave empty to scan every channel the bot can read (up to 40)."]
+];
+
+function fileSources(s, channels) {
+	const text = channels.filter(c => c.type === "text");
+	const picked = Object.fromEntries(FILE_SOURCES.map(([key]) => [key, new Set(s.discord[key] || [])]));
+	const editor = key => text.length
+		? h("div", { class: "role-list" }, text.map(c => {
+			const cb = h("input", { type: "checkbox", checked: picked[key].has(c.id) });
+			const chip = h("label", { class: `role-chip${cb.checked ? " on" : ""}` }, cb, h("i"), `#${c.name}`);
+			cb.addEventListener("change", () => { cb.checked ? picked[key].add(c.id) : picked[key].delete(c.id); chip.classList.toggle("on", cb.checked); });
+			return chip;
+		}))
+		: (() => {
+			const input = h("input", { class: "input mono", value: [...picked[key]].join(", "), placeholder: "Channel IDs, comma separated" });
+			input.addEventListener("input", () => { picked[key] = new Set(input.value.split(/[\s,]+/).filter(Boolean)); });
+			return input;
+		})();
+	return h("section", { class: "editor-section" }, h("h3", null, "Personnel file sources"),
+		h("p", { class: "muted small", style: { marginTop: 0 } }, "When a supervisor pulls a personnel file, the bot reads these channels. The bot needs View Channel and Read Message History on each one."),
+		h("div", { class: "stack" }, FILE_SOURCES.map(([key, label, help]) => h("div", { class: "field" }, h("span", null, label), h("small", null, help), editor(key)))),
+		h("div", { style: { marginTop: "12px" } }, h("button", { class: "btn primary", onclick: async () => {
+			await attempt(() => api("/settings/discord", { method: "PUT", body: { ...s.discord, ...Object.fromEntries(Object.entries(picked).map(([k, v]) => [k, [...v]])) } }), "Personnel file sources saved");
+		} }, "Save file sources")));
+}
+
 }

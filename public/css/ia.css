@@ -511,3 +511,45 @@ table.table { width: 100%; border-collapse: collapse; }
 	.timeline li, .card, .stat, .btn { transition: none; }
 	body.shielded [data-contained] { transition: none; }
 }
+
+/* Personnel files */
+.role-chip i { background: var(--muted); }
+.jacket .casefile-head { padding-bottom: 18px; }
+.jacket-id { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+.jacket-id h2 { margin: 0; font-family: var(--display); font-size: 30px; letter-spacing: 0.04em; }
+.jacket-line { color: var(--text-2); font-size: 12.5px; margin-top: 4px; }
+.avatar.xl { width: 72px; height: 72px; font-size: 24px; border: 2px solid var(--gold-line); }
+.readiness { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--line-2); background: var(--bg-2); }
+.readiness span { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.readiness b { font-family: var(--display); font-size: 18px; letter-spacing: 0.04em; }
+.readiness.green { border-color: rgba(61, 187, 126, 0.45); } .readiness.green b { color: #6fdcaa; }
+.readiness.gold { border-color: var(--gold-line); } .readiness.gold b { color: var(--gold-2); }
+.readiness.red { border-color: rgba(229, 83, 75, 0.5); } .readiness.red b { color: #ff9790; }
+.stat.static { cursor: default; }
+.stat.static:hover { border-color: var(--line); }
+.file-banner { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--radius); border: 1px solid var(--gold-line); background: var(--gold-soft); font-size: 13px; }
+.file-banner.bad { border-color: rgba(229, 83, 75, 0.45); background: var(--red-soft); color: #ffb9b4; }
+.file-banner.quiet { border-color: var(--line); background: var(--panel); color: var(--muted); }
+.spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--gold-line); border-top-color: var(--gold); animation: spin 0.8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.advisory { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--muted); padding: 8px 10px; border: 1px dashed var(--line-2); border-radius: var(--radius-sm); }
+.list-title { font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+.list-title.green { color: #6fdcaa; } .list-title.red { color: #ff9790; } .list-title.gold { color: var(--gold-2); }
+.clean-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
+.clean-list li { padding-left: 12px; position: relative; }
+.clean-list li::before { content: ""; position: absolute; left: 0; top: 0.65em; width: 4px; height: 4px; border-radius: 50%; background: var(--muted); }
+.clean-list.indicators li { padding-left: 0; display: flex; gap: 8px; align-items: center; }
+.clean-list.indicators li::before { display: none; }
+.log-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; max-height: 520px; overflow-y: auto; }
+.log-list li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.log-list li:last-child { border-bottom: 0; }
+.log-list.compact { max-height: 260px; }
+.log-meta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+.log-text { font-size: 13px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.flag-item { padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg-2); border-left-width: 3px; }
+.flag-item.high { border-left-color: var(--red); } .flag-item.medium { border-left-color: var(--amber); } .flag-item.low { border-left-color: var(--blue); }
+.flag-item .quote { margin: 8px 0; font-size: 13.5px; white-space: pre-wrap; }
+.facts-dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; font-size: 13px; }
+.facts-dl dt { color: var(--muted); }
+.facts-dl dd { margin: 0; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
