@@ -263,7 +263,7 @@ function sidebar(c, reload) {
 	} }, icon("x"), "Delete case (owner)"));
 
 	const ticketList = h("div", { class: "stack", style: { gap: "8px" } }, c.tickets.length ? c.tickets.map(t =>
-		h("div", { class: "ticket-item", role: "button", tabindex: "0", onclick: () => openTranscript(c, `${t.ref}#1`, false), onkeydown: e => { if (e.key === "Enter") openTranscript(c, `${t.ref}#1`, false); } },
+		h("button", { type: "button", class: "ticket-item", "aria-label": `Open transcript ${t.ref}`, onclick: () => openTranscript(c, `${t.ref}#1`, false) },
 			h("span", { class: "ref" }, t.ref),
 			h("div", { style: { minWidth: 0, flex: 1 } },
 				h("div", { class: "small" }, t.type === "report" ? "Trooper report" : t.type === "interview" ? "Interview" : "OPS report", t.anonymous ? h("span", { class: "tag red", style: { marginLeft: "6px" } }, "Anon") : null),
@@ -395,7 +395,7 @@ export function openSignModal(c, onDone) {
 			diff,
 			h("label", { class: "field" }, h("span", null, "Notice to member"), notice, h("small", null, "Shown to the subject in their IA record once approved. The AI rationale and narrative are never shown to them.")),
 			h("label", { class: "field" }, h("span", null, "Statement"), statement),
-			h("div", { class: "stale-banner", style: { background: "var(--gold-soft)", borderColor: "var(--gold-line)", color: "var(--gold-2)" } }, icon("pen"),
+			h("div", { class: "stale-banner banner-gold" }, icon("pen"),
 				h("div", null, "Your signature is recorded with a timestamp and a hash of the case file. It cannot be edited or removed. Any later edit to the signed content flags the signature and sends the case back for review.")),
 			h("label", { class: "field" }, h("span", null, `Type your name exactly (${store.me.displayName}) to sign`), typed)),
 		actions: [

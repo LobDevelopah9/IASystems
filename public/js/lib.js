@@ -104,7 +104,8 @@ export async function api(path, { method = "GET", body } = {}) {
 // --- Feedback ----------------------------------------------------------------------------
 
 export function toast(message, kind = "ok") {
-	const el = h("div", { class: `toast ${kind}` }, icon(kind === "error" ? "alert" : "check"), h("div", null, message));
+	// Errors interrupt (role=alert); confirmations are announced politely by the #toasts live region.
+	const el = h("div", { class: `toast ${kind}`, role: kind === "error" ? "alert" : null }, icon(kind === "error" ? "alert" : "check"), h("div", null, message));
 	document.getElementById("toasts").append(el);
 	setTimeout(() => el.remove(), kind === "error" ? 6500 : 3500);
 }
@@ -121,47 +122,72 @@ export async function attempt(fn, success) {
 }
 
 let layer = null;
+let returnFocus = null;
+let layerSeq = 0;
+const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])";
 
 export function closeLayer() {
 	if (layer) {
 		layer.forEach(el => el.remove());
 		layer = null;
-		document.removeEventListener("keydown", escClose);
+		document.removeEventListener("keydown", layerKeys);
+		// Focus goes back to whatever opened the dialog.
+		if (returnFocus && document.contains(returnFocus)) returnFocus.focus();
+		returnFocus = null;
 	}
 }
 
-function escClose(event) {
-	if (event.key === "Escape") closeLayer();
+// Escape closes; Tab and Shift+Tab stay inside the open dialog.
+function layerKeys(event) {
+	if (event.key === "Escape") return closeLayer();
+	if (event.key !== "Tab" || !layer) return;
+	const panel = layer[1];
+	const items = [...panel.querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null);
+	if (!items.length) return;
+	const first = items[0];
+	const last = items[items.length - 1];
+	if (event.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) {
+		event.preventDefault();
+		last.focus();
+	} else if (!event.shiftKey && (document.activeElement === last || !panel.contains(document.activeElement))) {
+		event.preventDefault();
+		first.focus();
+	}
 }
 
 function openLayer(panel) {
+	const opener = layer ? returnFocus : document.activeElement;
 	closeLayer();
-	const scrim = h("div", { class: "scrim", onclick: closeLayer });
+	returnFocus = opener;
+	const scrim = h("div", { class: "scrim", onclick: closeLayer, "aria-hidden": "true" });
 	document.body.append(scrim, panel);
 	layer = [scrim, panel];
-	document.addEventListener("keydown", escClose);
+	document.addEventListener("keydown", layerKeys);
+	setTimeout(() => {
+		if (!panel.contains(document.activeElement)) (panel.querySelector("input, select, textarea") || panel.querySelector(FOCUSABLE) || panel).focus();
+	}, 30);
 	return panel;
 }
 
 export function modal({ title, body, actions = [], wide = false, contained = false }) {
 	const foot = h("div", { class: "modal-foot" }, actions);
-	const panel = h("div", { class: `modal${wide ? " wide" : ""}`, role: "dialog", "aria-modal": "true", dataset: contained ? { contained: "" } : {} },
-		h("div", { class: "modal-head" }, h("h3", null, title), h("div", { class: "spacer" }),
+	const titleId = `dlg-${++layerSeq}`;
+	const panel = h("div", { class: `modal${wide ? " wide" : ""}`, role: "dialog", "aria-modal": "true", "aria-labelledby": titleId, tabindex: "-1", dataset: contained ? { contained: "" } : {} },
+		h("div", { class: "modal-head" }, h("h3", { id: titleId }, title), h("div", { class: "spacer" }),
 			h("button", { class: "btn ghost sm", onclick: closeLayer, "aria-label": "Close" }, icon("x"))),
 		h("div", { class: "modal-body" }, body),
 		actions.length ? foot : null);
 	openLayer(panel);
-	const first = panel.querySelector("input, select, textarea");
-	if (first) setTimeout(() => first.focus(), 30);
 	return panel;
 }
 
 export function drawer({ title, subtitle, body, contained = true, watermarkFor }) {
 	const bodyEl = h("div", { class: "drawer-body" }, body);
 	if (watermarkFor) bodyEl.append(watermark(watermarkFor));
-	const panel = h("aside", { class: "drawer", role: "dialog", "aria-modal": "true", dataset: contained ? { contained: "" } : {} },
+	const titleId = `dlg-${++layerSeq}`;
+	const panel = h("aside", { class: "drawer", role: "dialog", "aria-modal": "true", "aria-labelledby": titleId, tabindex: "-1", dataset: contained ? { contained: "" } : {} },
 		h("div", { class: "drawer-head" },
-			h("div", null, h("h3", null, title), subtitle ? h("div", { class: "muted small" }, subtitle) : null),
+			h("div", null, h("h3", { id: titleId }, title), subtitle ? h("div", { class: "muted small" }, subtitle) : null),
 			h("div", { class: "spacer" }),
 			h("button", { class: "btn ghost sm", onclick: closeLayer, "aria-label": "Close" }, icon("x"))),
 		bodyEl);
@@ -295,6 +321,24 @@ export function setViewer(viewer) {
 // The on-screen watermark was removed at IA command's request. Callers still insert this placeholder node.
 export function watermark() {
 	return document.createComment("");
+}
+
+// Accessible tab strip: role=tablist, aria-selected, arrow-key navigation.
+export function tabStrip(tabs, active, onSelect, label = "Sections") {
+	const buttons = tabs.map(([key, text]) => h("button", {
+		role: "tab", "aria-selected": String(key === active), tabindex: key === active ? "0" : "-1",
+		class: key === active ? "on" : "", onclick: () => onSelect(key)
+	}, text));
+	const strip = h("div", { class: "tabs", role: "tablist", "aria-label": label }, buttons);
+	strip.addEventListener("keydown", event => {
+		const i = buttons.indexOf(document.activeElement);
+		if (i === -1 || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+		event.preventDefault();
+		const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (i + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
+		buttons[next].focus();
+		buttons[next].click();
+	});
+	return strip;
 }
 
 export function debounce(fn, ms) {

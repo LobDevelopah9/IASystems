@@ -59,7 +59,7 @@ function renderShell() {
 	titleEl = h("h1");
 	subEl = h("div", { class: "sub" });
 	actionsEl = h("div", { class: "row" });
-	content = h("div", { class: "content" });
+	content = h("main", { class: "content", id: "content", tabindex: "-1" });
 	root = clear(document.getElementById("root"),
 		h("div", { class: "shell" },
 			h("aside", { class: "sidebar" },

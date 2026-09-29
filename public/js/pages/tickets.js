@@ -1,4 +1,4 @@
-import { h, clear, icon, api, toast, attempt, ago, drawer, redacted, debounce } from "../lib.js";
+import { h, clear, icon, api, toast, attempt, ago, drawer, redacted, debounce, tabStrip } from "../lib.js";
 import { store, can } from "../state.js";
 import { renderTranscript } from "./case.js";
 
@@ -7,14 +7,14 @@ export async function render({ page, go, isCurrent }) {
 	let state = "unattached";
 	const selected = new Set();
 	const search = h("input", { class: "input", type: "search", placeholder: "Search tickets…" });
-	const tabs = h("div", { class: "tabs" });
+	let tabs = h("div", { class: "tabs" });
 	const box = h("div", { class: "panel table-wrap" });
 	const bulk = h("div", { class: "row" });
 	let rows = [];
 
 	const TABS = [["unattached", "Awaiting a case"], ["open", "Open in Discord"], ["all", "All tickets"]];
 	function drawTabs() {
-		clear(tabs, TABS.map(([key, label]) => h("button", { class: state === key ? "on" : "", onclick: () => { state = key; selected.clear(); drawTabs(); load(); } }, label)));
+		tabs.replaceWith(tabs = tabStrip(TABS, state, key => { state = key; selected.clear(); drawTabs(); load(); }, "Ticket lists"));
 	}
 
 	async function load() {

@@ -1,4 +1,4 @@
-import { h, clear, icon, api, toast, attempt, ago, avatar, modal, closeLayer, confirmDialog } from "../lib.js";
+import { h, clear, icon, api, toast, attempt, ago, avatar, modal, closeLayer, confirmDialog, tabStrip } from "../lib.js";
 import { store, can } from "../state.js";
 
 const ROLE_ORDER = { director: 0, supervisor: 1, investigator: 2, trooper: 3, none: 4 };
@@ -11,7 +11,7 @@ export async function render({ page, isCurrent }) {
 	let tab = "agents";
 	let data = { users: [], roles: [] };
 	let personnel = [];
-	const tabs = h("div", { class: "tabs" });
+	let tabs = h("div", { class: "tabs" });
 	const search = h("input", { class: "input", type: "search", placeholder: "Search by name, username, callsign…" });
 	const body = h("div");
 
@@ -32,8 +32,7 @@ export async function render({ page, isCurrent }) {
 			members: data.users.length,
 			personnel: personnel.length
 		};
-		clear(tabs, [["agents", "IA Agents"], ["members", "All portal users"], ["personnel", "Personnel directory"]].map(([key, label]) =>
-			h("button", { class: tab === key ? "on" : "", onclick: () => { tab = key; draw(); } }, `${label} (${counts[key]})`)));
+		tabs.replaceWith(tabs = tabStrip([["agents", `IA Agents (${counts.agents})`], ["members", `All portal users (${counts.members})`], ["personnel", `Personnel directory (${counts.personnel})`]], tab, key => { tab = key; draw(); }, "User lists"));
 	}
 
 	function draw() {

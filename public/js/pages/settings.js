@@ -1,4 +1,4 @@
-import { h, clear, icon, api, toast, attempt, confirmDialog, ago } from "../lib.js";
+import { h, clear, icon, api, toast, attempt, confirmDialog, ago, tabStrip } from "../lib.js";
 import { loadMe, store } from "../state.js";
 
 const ROLE_INFO = {
@@ -11,13 +11,13 @@ const ROLE_INFO = {
 export async function render({ page, params, isCurrent }) {
 	page.setTitle("Settings", "Discord connection, role mapping, discipline policy, AI drafting, and system health.");
 	let tab = params[0] || "system";
-	const tabs = h("div", { class: "tabs" });
+	let tabs = h("div", { class: "tabs" });
 	const body = h("div");
 	clear(page.content, tabs, body);
 
 	const TABS = [["system", "System status"], ["discord", "Discord & roles"], ["policy", "Punishment policy"], ...(store.owner ? [["import", "Import records"]] : [])];
 	async function show() {
-		clear(tabs, TABS.map(([key, label]) => h("button", { class: tab === key ? "on" : "", onclick: () => { tab = key; history.replaceState(null, "", `#/settings/${key}`); show(); } }, label)));
+		tabs.replaceWith(tabs = tabStrip(TABS, tab, key => { tab = key; history.replaceState(null, "", `#/settings/${key}`); show(); }, "Settings sections"));
 		clear(body, h("div", { class: "skeleton", style: { height: "240px" } }));
 		if (tab === "system") await system();
 		if (tab === "discord") await discord();

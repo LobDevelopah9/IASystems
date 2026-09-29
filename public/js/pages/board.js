@@ -42,8 +42,8 @@ export async function render({ key, page, go, isCurrent }) {
 	reporter.style.maxWidth = "160px";
 	const anon = h("input", { type: "checkbox" });
 	const viewToggle = h("div", { class: "segmented" },
-		h("button", { class: view === "board" ? "on" : "", onclick: () => setView("board"), title: "Board view" }, icon("columns")),
-		h("button", { class: view === "list" ? "on" : "", onclick: () => setView("list"), title: "List view" }, icon("list")));
+		h("button", { type: "button", class: view === "board" ? "on" : "", "aria-pressed": String(view === "board"), "aria-label": "Board view", title: "Board view", onclick: () => setView("board") }, icon("columns")),
+		h("button", { type: "button", class: view === "list" ? "on" : "", "aria-pressed": String(view === "list"), "aria-label": "List view", title: "List view", onclick: () => setView("list") }, icon("list")));
 
 	const filterBar = h("div", { class: "filters" },
 		h("div", { class: "search" }, icon("search"), searchInput, h("kbd", null, "/")),
@@ -57,16 +57,20 @@ export async function render({ key, page, go, isCurrent }) {
 	function setView(next) {
 		view = next;
 		try { localStorage.setItem(PREFS_KEY, next); } catch { /* storage unavailable */ }
-		[...viewToggle.children].forEach((b, i) => b.classList.toggle("on", (i === 0) === (next === "board")));
+		[...viewToggle.children].forEach((b, i) => { const on = (i === 0) === (next === "board"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
 		draw();
 	}
 
-	const load = async () => {
+	let lastQuery = null;
+	const load = async (force = false) => {
 		const params = new URLSearchParams();
 		for (const [k, v] of Object.entries(filters)) {
 			if (Array.isArray(v)) { if (v.length) params.set(k, v.join(",")); }
 			else if (v) params.set(k, v);
 		}
+		// Typing that doesn't change the query (e.g. trailing spaces) doesn't refetch the board.
+		if (!force && params.toString() === lastQuery) return;
+		lastQuery = params.toString();
 		const data = await api(`/cases?${params}`);
 		if (!isCurrent()) return;
 		results = data.cases;
@@ -103,12 +107,11 @@ export async function render({ key, page, go, isCurrent }) {
 		results.forEach(c => { counts[c.status]++; });
 		clear(statsEl, COLUMNS.map(s => {
 			const active = filters.status.length === 1 && filters.status[0] === s;
-			const el = h("div", { class: `stat${active ? " active" : ""}`, role: "button", tabindex: "0", title: `Filter: ${STATUS[s].label}` },
+			const el = h("button", { type: "button", class: `stat${active ? " active" : ""}`, "aria-pressed": String(active), title: `Filter: ${STATUS[s].label}` },
 				h("b", null, active || !filters.status.length ? counts[s] : "·"), h("span", null, STATUS[s].label));
 			el.style.setProperty("--c", STATUS[s].color);
 			const toggle = () => { filters.status = active ? [] : [s]; load(); };
 			el.addEventListener("click", toggle);
-			el.addEventListener("keydown", e => { if (e.key === "Enter") toggle(); });
 			return el;
 		}));
 	}
@@ -215,10 +218,10 @@ export async function render({ key, page, go, isCurrent }) {
 		if (note === null) return;
 		await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/status`, { method: "POST", body: { to: status, note: note === true ? "" : note } }), `Case #${c.ref} moved to ${STATUS[status].label}`);
 		refreshCounts();
-		load();
+		load(true);
 	}
 
-	await load();
+	await load(true);
 }
 
 export function tags(c) {

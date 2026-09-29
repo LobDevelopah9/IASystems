@@ -80,7 +80,7 @@ export async function render({ params, page, go }) {
 	}
 	drawTimeline();
 
-	const pendingDraft = c.ai.pendingDraft ? h("div", { class: "stale-banner", style: { background: "rgba(160,124,242,.12)", borderColor: "rgba(160,124,242,.4)", color: "#d5c3ff" } }, icon("bot"),
+	const pendingDraft = c.ai.pendingDraft ? h("div", { class: "stale-banner banner-violet" }, icon("bot"),
 		h("div", { class: "spacer" }, h("b", null, "A newer AI draft is available. "), "It was not applied automatically because this narrative has been edited by IA staff."),
 		h("button", { class: "btn sm", onclick: async () => {
 			const ok = await confirmDialog({ title: "Apply the new AI narrative?", message: "This replaces the summary, timeline, excerpts, interview and location sections with the new draft. Your edits remain in the edit history.", confirmLabel: "Apply draft" });
