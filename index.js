@@ -13,6 +13,7 @@ const server = app.listen(config.PORT, () => {
 
 pipeline.start();
 require("./lib/evidence").start();
+require("./lib/identity").start();
 bot.start();
 
 function shutdown(signal) {

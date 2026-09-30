@@ -331,8 +331,12 @@ router.post("/cases/:ref/archive", requireCap("case.edit"), (req, res) => {
 
 router.get("/personnel", requireCap("case.view"), (req, res) => {
 	const q = `%${String(req.query.q || "").trim()}%`;
-	const rows = db.prepare(`SELECT p.*, (SELECT COUNT(*) FROM cases c WHERE c.subject_personnel_id = p.id) AS case_count
-		FROM personnel p WHERE (p.name LIKE @q OR p.callsign LIKE @q OR p.roblox_username LIKE @q OR p.discord_username LIKE @q)
+	// Linked duplicate records (e.g. an imported Trello record for a synced member) fold into their main record.
+	const rows = db.prepare(`SELECT p.*, (SELECT COUNT(*) FROM cases c WHERE c.subject_personnel_id = p.id
+			OR c.subject_personnel_id IN (SELECT id FROM personnel m WHERE m.merged_into = p.id)) AS case_count
+		FROM personnel p WHERE p.merged_into IS NULL
+		AND (p.name LIKE @q OR p.callsign LIKE @q OR p.roblox_username LIKE @q OR p.discord_username LIKE @q
+			OR EXISTS (SELECT 1 FROM personnel m WHERE m.merged_into = p.id AND (m.name LIKE @q OR m.roblox_username LIKE @q)))
 		AND (p.discord_id IS NULL OR p.discord_id <> @me) ORDER BY p.name LIMIT 200`).all({ q, me: isOwner(req.user) ? "" : req.user.discord_id });
 	res.json({ personnel: rows.map(p => ({ id: p.id, name: p.name, callsign: p.callsign, robloxUsername: p.roblox_username, discordUsername: p.discord_username, department: p.department, rank: p.rank, discordId: p.discord_id, caseCount: p.case_count, demo: Boolean(p.demo) })) });
 });
@@ -543,6 +547,7 @@ router.get("/system", requireCap("settings.manage"), (req, res) => {
 		publicUrl: config.PUBLIC_URL,
 		redirectUri: `${config.PUBLIC_URL}/auth/callback`,
 		oauth: { configured: Boolean(config.DISCORD_CLIENT_ID && config.DISCORD_CLIENT_SECRET) },
+		identity: require("../lib/identity").status(),
 		bot: { ...bot.status(), inviteUrl: bot.inviteUrl() },
 		discord,
 		roleMapComplete: ["director", "supervisor", "investigator"].every(r => roleMap[r]?.length),

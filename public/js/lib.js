@@ -235,7 +235,8 @@ export function ago(ms) {
 }
 
 export function initials(name) {
-	return String(name || "?").replace(/^(tpr|sgt|lt|cpl|det|cmdr|capt|maj|col)\.?\s+/i, "").split(/\s+/).map(p => p[0]).slice(0, 2).join("").toUpperCase();
+	// "RANK | CALLSIGN | Name" nicknames: use the name part.
+	return String(name || "?").split("|").pop().trim().replace(/^(tpr|sgt|lt|cpl|det|cmdr|capt|maj|col)\.?\s+/i, "").split(/\s+/).map(p => p[0]).slice(0, 2).join("").toUpperCase();
 }
 
 export function avatar(name, url, cls = "") {

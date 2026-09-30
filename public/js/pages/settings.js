@@ -40,6 +40,9 @@ export async function render({ page, params, isCurrent }) {
 					s.bot.inviteUrl ? h("p", null, h("a", { href: s.bot.inviteUrl, target: "_blank", rel: "noopener" }, "Invite the bot to the SAHP server →")) : null),
 				item(s.discord.guildId ? "ok" : "bad", "SAHP server", s.discord.guildId ? `Guild ${s.discord.guildId}` : "Set the server ID under Discord & roles."),
 				item(s.discord.ticketCategoryId ? "ok" : "warn", "Ticket category", s.discord.ticketCategoryId ? "Tickets open under the configured category." : "Optional, but recommended: choose a private category for IA tickets."),
+				s.identity ? item(s.identity.bloxlink ? "ok" : "warn", "ROBLOX linking (Bloxlink)", s.identity.bloxlink
+					? `Linking automatically. ${s.identity.roblox || 0} of ${s.identity.total || 0} personnel have a ROBLOX account on file (${s.identity.bloxlink || 0} verified by Bloxlink).`
+					: "Server nicknames (RANK | CALLSIGN | RobloxName) are used. For verified links, add a Bloxlink server API key as BLOXLINK_API_KEY in Railway.") : null,
 				item(s.discord.logChannelId ? "ok" : "warn", "IA log channel", s.discord.logChannelId ? "Ticket events post links (never content) here." : "Optional: a private staff channel for ticket notifications."),
 				item(s.roleMapComplete ? "ok" : "bad", "Role mapping", s.roleMapComplete ? "Director, supervisor, and investigator roles are mapped." : "Map Discord roles to portal roles under Discord & roles."),
 				item(s.ai.configured ? "ok" : "bad", "AI drafting", s.ai.configured ? `Primary: ${s.ai.provider} · ${s.ai.model}` : "Set AI_PROVIDER, AI_API_KEY and optionally AI_MODEL.",

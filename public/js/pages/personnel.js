@@ -1,5 +1,6 @@
 import { h, clear, icon, api, attempt, toast, fmtDate, ago, avatar, modal, closeLayer, debounce, statusPill } from "../lib.js";
 import { findingLabel } from "../state.js";
+import { discordMessage } from "../discord.js";
 
 const RUNNING = ["queued", "scanning", "analysing"];
 const STAGE = {
@@ -100,9 +101,9 @@ async function renderFile(id, { page, go, isCurrent }) {
 					assessmentPanel(f),
 					indicatorPanel(f),
 					complaintsPanel(f),
-					logPanel("Discipline log", "flag", f.scan.discipline, "No discipline-log entries mention this member.", f),
-					logPanel("Promotion history", "shield", f.scan.promotions, "No promotion-log entries mention this member.", f),
-					logPanel("Commendations", "check", f.scan.commendations, "No commendations on record.", f),
+					logPanel("Discipline log", "flag", f.scan.discipline, "No discipline has been logged against this member.", f, "discipline"),
+					logPanel("Promotion / demotion history", "shield", f.scan.promotions, "No promotions or demotions logged for this member.", f, "promotions"),
+					logPanel("Commendations", "check", f.scan.commendations, "No commendations on record.", f, "commendations"),
 					flaggedPanel(f),
 					timelinePanel(f)),
 				h("aside", { class: "side" },
@@ -110,7 +111,7 @@ async function renderFile(id, { page, go, isCurrent }) {
 					robloxPanel(f),
 					notesPanel(f, () => addNote(id, f.noteKinds, draw)),
 					involvementPanel(f),
-					logPanel("Leave of absence", "clock", f.scan.leave, "No leave notices on record.", f, true),
+					logPanel("Leave of absence", "clock", f.scan.leave, "No leave notices on record.", f, "leave", true),
 					accessPanel(f)))));
 		if (running) timer = setTimeout(poll, 4000);
 	}
@@ -139,7 +140,7 @@ function scanBanner(f, pull) {
 	if (s.status === "failed") {
 		return h("div", { class: "file-banner bad" }, icon("alert"), h("span", { class: "spacer" }, `The last pull failed: ${s.error || "unknown error"}`), h("button", { class: "btn sm", onclick: pull }, "Try again"));
 	}
-	return h("div", { class: "file-banner quiet" }, icon("clock"), `Discord and ROBLOX records pulled ${ago(s.fetchedAt)}. ${s.messagesScanned || 0} messages read across ${s.channelsScanned || 0} channels.`);
+	return h("div", { class: "file-banner quiet" }, icon("clock"), `Discord and ROBLOX records pulled ${ago(s.fetchedAt)}. Found ${(s.messages || []).length} of the member's messages: ${s.messagesScanned || 0} read across ${s.channelsScanned || 0} channels${s.cached ? `, plus ${s.cached} from the live message log` : ""}${s.partial ? " (time limit reached; older history not read)" : ""}.`);
 }
 
 function jacketHead(f) {
@@ -224,15 +225,21 @@ function complaintsPanel(f) {
 		f.ia.filed.length ? h("div", { class: "muted small" }, `Reports filed by this member: ${f.ia.filed.map(c => `#${c.ref}`).join(", ")}`) : null));
 }
 
-function logPanel(title, iconName, entries, emptyText, f, compact = false) {
+// Log posts render like Discord messages. Only posts where this member is the subject are listed; posts they
+// issued or approved for someone else are counted but left out.
+function logPanel(title, iconName, entries, emptyText, f, key, compact = false) {
 	if (f.scan.status === "never" && !entries) return null;
 	const list = entries || [];
-	return panel(title, iconName, list.length
-		? h("ol", { class: `log-list${compact ? " compact" : ""}` }, list.slice(0, compact ? 10 : 40).map(e => h("li", null,
-			h("div", { class: "log-meta" }, h("span", { class: "mono" }, fmtDate(e.at, false)), h("span", null, `#${e.channel}`), e.author ? h("span", null, e.author) : null,
-				e.url ? h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer" }, "Open in Discord") : null),
-			h("div", { class: "log-text" }, e.content))))
-		: h("div", { class: "muted" }, emptyText),
+	const skipped = f.scan.excluded?.[key] || 0;
+	const note = skipped ? h("div", { class: "muted small" }, `${skipped} post${skipped > 1 ? "s" : ""} where this member issued, approved, or was only mentioned ${skipped > 1 ? "are" : "is"} not shown.`) : null;
+	return panel(title, iconName, h("div", { class: "stack", style: { gap: "10px" } },
+		list.length
+			? h("div", { class: `dc-list${compact ? " compact" : ""}` }, list.slice(0, compact ? 10 : 50).map(e => discordMessage(e, {
+				highlight: f.person.discordId,
+				extra: e.why ? h("div", { class: "dc-why" }, `Matched: ${e.why}`) : null
+			})))
+			: h("div", { class: "muted" }, emptyText),
+		note),
 	list.length ? h("span", { class: "muted small" }, `${list.length}`) : null);
 }
 
@@ -246,7 +253,7 @@ function flaggedPanel(f) {
 				h("a", { class: "btn sm ghost", href: m.url, target: "_blank", rel: "noopener noreferrer" }, icon("link"), "Jump to message")),
 			h("blockquote", { class: "quote" }, m.quote),
 			h("div", { class: "small" }, m.reason))))
-		: h("div", { class: "muted" }, `The AI did not flag any of the ${f.scan.messages?.length || 0} messages it reviewed.`),
+		: h("div", { class: "muted" }, f.scan.messages?.length ? `The AI reviewed ${f.scan.messages.length} of this member's messages and flagged none.` : f.person.discordId ? "No messages from this member were found. Check that the bot can read the scan channels (Settings → Discord & roles → Personnel file sources)." : "This record is not linked to a Discord account, so messages could not be reviewed. It links automatically through Bloxlink or the member's server nickname."),
 	h("span", { class: "muted small" }, "Quotes verified against the source message"));
 }
 
@@ -282,7 +289,9 @@ function serviceRecord(f) {
 			["Callsign", p.callsign],
 			["Badge", p.badge],
 			["Department", p.department],
-			["Discord", p.discordUsername ? `@${p.discordUsername}` : null],
+			["Discord", p.discordUsername ? `@${p.discordUsername}` : p.discordId ? "Linked" : "Not linked"],
+			["ROBLOX", p.roblox ? `${p.roblox}${p.identitySource === "bloxlink" ? " (verified via Bloxlink)" : p.identitySource === "nickname" ? " (from server nickname)" : ""}` : null],
+			["Linked records", p.linkedRecords?.length ? p.linkedRecords.map(r => r.name).join(", ") : null],
 			["Server nickname", s.displayName],
 			["Joined server", s.joinedAt ? `${fmtDate(s.joinedAt, false)} (${duration(s.joinedAt)})` : null],
 			["Time in grade", s.lastPromotionAt ? `${duration(s.lastPromotionAt)} (since ${fmtDate(s.lastPromotionAt, false)})` : null],
