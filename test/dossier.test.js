@@ -79,7 +79,12 @@ test("a pull stores the scan and keeps only verified AI flags", async () => {
 		messagesScanned: 2
 	});
 	roblox.lookup = async () => ({ found: true, id: 1, username: "HaleRBX", createdAt: t - 20 * 86400000, banned: false, previousNames: [], groups: [] });
-	ai.runJson = async () => ({
+	ai.runJson = async ({ system, user }) => (system.includes("log posts") ? {
+		// The log check confirms d1 and d2; d3 is a post the member issued to someone else.
+		provider: "groq",
+		model: "test",
+		data: { results: String(user).includes("POST d1") ? [{ id: "d1", role: "subject" }, { id: "d2", role: "subject" }, { id: "d3", role: "issuer" }, { id: "p1", role: "subject" }] : [{ id: "p1", role: "subject" }] }
+	} : {
 		provider: "groq",
 		model: "test",
 		data: {
@@ -103,7 +108,9 @@ test("a pull stores the scan and keeps only verified AI flags", async () => {
 	assert.equal(res.body.assessment.flagged[0].id, "m1");
 	assert.equal(res.body.assessment.readiness.assessment, "not_yet");
 	const texts = res.body.indicators.map(i => i.text).join(" | ");
-	assert.match(texts, /3 discipline-log entries in the last 90 days/);
+	assert.deepEqual(res.body.scan.discipline.map(e => e.id), ["d1", "d2"], "a post the member issued is removed by the log check");
+	assert.equal(res.body.scan.excluded.discipline, 1);
+	assert.match(texts, /2 discipline-log entries in the last 90 days/);
 	assert.match(texts, /Discord account is less than 90 days old/);
 	assert.match(texts, /ROBLOX account is less than 180 days old/);
 	assert.equal(res.body.service.lastPromotionAt, t - 100 * 86400000);

@@ -19,12 +19,19 @@ test("discipline and promotion logs count only when the member is the subject", 
 	assert.equal(role({ content: "**Discipline Log**\nUsername: <@222222222222222222>\nPunishment: Strike 1\nIssued by: <@111111111111111111>", authorId: ME }), "issuer");
 	assert.equal(role({ content: "Promoted: <@333333333333333333>\nPromoted To: Sergeant\nApproved By: <@111111111111111111>" }), "issuer");
 	assert.equal(role({ content: "Promoted: <@111111111111111111>\nOld Rank: Trooper\nNew Rank: Sergeant\nApproved By: <@222222222222222222>" }), "subject");
-	assert.equal(role({ content: "<@222222222222222222> has been demoted to Trooper. Signed <@111111111111111111>" }), "mentioned");
+	assert.equal(role({ content: "<@222222222222222222> has been demoted to Trooper. Signed <@111111111111111111>" }), "issuer");
 	assert.equal(role({ content: "<@111111111111111111> has been promoted to Corporal!" }), "subject");
 	assert.equal(role({ embeds: [{ title: "Infraction", fields: [{ name: "Trooper", value: "xKinqAcc" }, { name: "Issued By", value: "Bob" }] }] }), "subject");
 	assert.equal(role({ embeds: [{ title: "Infraction", fields: [{ name: "Trooper", value: "Bob" }, { name: "Issued By", value: "xKinqAcc" }] }] }), "issuer");
 	assert.equal(role({ content: "Bob received a strike for RDM", authorId: ME }), "issuer");
 	assert.equal(role({ content: "Nothing about them here" }), null);
+	// Formats that were being miscounted: the staff member who ran the command, and "A issued X to B".
+	assert.equal(role({ embeds: [{ authorName: "xKinqAcc", title: "Strike", description: "<@222222222222222222> received a strike for RDM" }] }), "issuer");
+	assert.equal(role({ content: "<@111111111111111111> issued a strike to <@222222222222222222> for FRP" }), "issuer");
+	assert.equal(role({ content: "<@222222222222222222> issued a strike to <@111111111111111111> for FRP" }), "subject");
+	assert.equal(role({ content: "Trooper Bob was warned for RDM.\n- xKinqAcc" }), "issuer");
+	assert.equal(role({ content: "Congratulations <@111111111111111111> on your promotion to Corporal!" }), "subject");
+	assert.equal(role({ content: "Username: <@111111111111111111>\nStrike 1", authorId: ME }), "issuer", "a member never logs their own discipline");
 });
 
 test("SAHP nicknames give ROBLOX, callsign, and rank", () => {
