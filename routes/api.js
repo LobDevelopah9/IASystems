@@ -341,7 +341,7 @@ router.get("/personnel", requireCap("case.view"), (req, res) => {
 	res.json({ personnel: rows.map(p => ({ id: p.id, name: p.name, callsign: p.callsign, robloxUsername: p.roblox_username, discordUsername: p.discord_username, department: p.department, rank: p.rank, discordId: p.discord_id, caseCount: p.case_count, demo: Boolean(p.demo) })) });
 });
 
-// Personnel files (supervisor+): IA history, Discord discipline/promotion logs, messages, and an AI assessment.
+// Personnel files (all IA staff, investigator+): IA history, Discord discipline/promotion logs, messages, and an AI assessment.
 router.get("/personnel/:id/file", requireCap("personnel.dossier"), (req, res) => {
 	res.json(require("../lib/dossier").view(req.params.id, req.user, req.ip));
 });

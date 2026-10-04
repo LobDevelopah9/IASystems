@@ -324,7 +324,7 @@ function notesPanel(f, add) {
 		? h("div", { class: "stack" }, f.notes.map(n => h("div", { class: "note" },
 			h("div", { class: "row small" }, h("span", { class: "tag violet" }, n.kindLabel), h("span", { class: "muted" }, `${n.author} · ${fmtDate(n.createdAt)}`)),
 			h("div", { class: "prose small", style: { marginTop: "6px" } }, n.body))))
-		: h("div", { class: "muted small" }, "No notes. Notes are permanent once added and are visible to IA supervisors only."),
+		: h("div", { class: "muted small" }, "No notes. Notes are permanent once added and are visible to IA staff only."),
 	h("button", { class: "btn sm", onclick: add }, icon("plus"), "Add"));
 }
 

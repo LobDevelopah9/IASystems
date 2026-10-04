@@ -25,9 +25,10 @@ async function agent(id) {
 const post = (a, path, body) => a.post(path).set("X-IA-Request", "1").send(body);
 const hale = () => db.prepare("SELECT * FROM personnel WHERE discord_id = ?").get(HALE);
 
-test("personnel files are supervisor-only", async () => {
+test("personnel files are open to all IA staff, not troopers", async () => {
 	const p = hale();
-	await (await agent(INVESTIGATOR)).get(`/api/personnel/${p.id}/file`).expect(403);
+	await (await agent(INVESTIGATOR)).get(`/api/personnel/${p.id}/file`).expect(200);
+	await (await agent("900000000000000006")).get(`/api/personnel/${p.id}/file`).expect(403);
 	await (await agent(HALE)).get(`/api/personnel/${p.id}/file`).expect(403);
 	const res = await (await agent(SUPERVISOR)).get(`/api/personnel/${p.id}/file`).expect(200);
 	assert.equal(res.body.person.name, p.name);
