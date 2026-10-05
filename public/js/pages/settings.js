@@ -166,6 +166,7 @@ export async function render({ page, params, isCurrent }) {
 					await attempt(() => api("/settings/discord", { method: "PUT", body: { guildId: guild.value.trim(), ticketCategoryId: category.value.trim(), logChannelId: log.value.trim() } }), "Discord settings saved");
 					show();
 				} }, "Save server settings"))),
+			panelSection(channels),
 			fileSources(s, channels),
 			h("section", { class: "editor-section" }, h("h3", null, "Role mapping"),
 				h("p", { class: "muted small", style: { marginTop: 0 } }, "Portal access follows these Discord roles. A member gets the highest portal role any of their Discord roles maps to. Changes sync to every member immediately. Individual overrides live on the Users page."),
@@ -255,4 +256,78 @@ function fileSources(s, channels) {
 		} }, "Save file sources")));
 }
 
+}
+
+// Intake panels: where the report buttons are posted. The bot keeps each one up to date and reposts it if deleted.
+function panelSection(channels) {
+	const text = channels.filter(c => c.type === "text");
+	const name = id => (text.find(c => c.id === id) ? `#${text.find(c => c.id === id).name}` : `Channel ${id}`);
+	const body = h("div", { class: "stack" }, h("div", { class: "skeleton", style: { height: "60px" } }));
+
+	const channelPicker = (value, exclude = []) => text.length
+		? h("select", { class: "input", value: value || "" }, h("option", { value: "" }, "Choose a channel…"),
+			text.filter(c => c.id === value || !exclude.includes(c.id)).map(c => h("option", { value: c.id }, `#${c.name}`)))
+		: h("input", { class: "input mono", value: value || "", placeholder: "Channel ID" });
+
+	const buttonPicker = (labels, selected) => {
+		const chosen = new Set(selected);
+		const el = h("div", { class: "role-list", style: { maxHeight: "none" } }, Object.entries(labels).map(([key, label]) => {
+			const cb = h("input", { type: "checkbox", checked: chosen.has(key) });
+			const chip = h("label", { class: `role-chip${cb.checked ? " on" : ""}` }, cb, h("i"), label);
+			cb.addEventListener("change", () => { cb.checked ? chosen.add(key) : chosen.delete(key); chip.classList.toggle("on", cb.checked); });
+			return chip;
+		}));
+		return { el, value: () => [...chosen] };
+	};
+
+	async function call(path, method, payload, success) {
+		const data = await attempt(() => api(path, { method, body: payload }), success);
+		draw(data);
+	}
+
+	function draw({ panels, buttons }) {
+		const used = panels.map(p => p.channelId);
+		const rows = panels.map(p => {
+			const move = channelPicker(p.channelId, used);
+			const picks = buttonPicker(buttons, p.buttons);
+			return h("div", { class: "note stack", style: { gap: "10px" } },
+				h("div", { class: "row" },
+					h("b", null, name(p.channelId)),
+					p.error ? h("span", { class: "tag red", title: p.error }, icon("alert"), p.error) : h("span", { class: "tag green" }, "Live"),
+					h("span", { class: "muted small" }, p.postedAt ? `updated ${ago(p.postedAt)}` : ""),
+					h("div", { class: "spacer" }),
+					h("button", { class: "btn sm danger", onclick: async () => {
+						const ok = await confirmDialog({ title: "Remove this panel?", message: `The panel message in ${name(p.channelId)} will be deleted. Open tickets are not affected.`, confirmLabel: "Remove panel", danger: true });
+						if (ok) call(`/settings/panels/${p.channelId}`, "DELETE", undefined, "Panel removed");
+					} }, icon("x"), "Remove")),
+				h("div", { class: "grid-2" },
+					h("label", { class: "field" }, h("span", null, "Channel"), move),
+					h("div", { class: "field" }, h("span", null, "Buttons"), picks.el)),
+				h("div", null, h("button", { class: "btn sm", onclick: () => {
+					const target = move.value.trim();
+					call(`/settings/panels/${p.channelId}`, "PATCH", { channelId: target || p.channelId, buttons: picks.value() }, target && target !== p.channelId ? `Panel moved to ${name(target)}` : "Panel updated");
+				} }, icon("refresh"), "Save changes")));
+		});
+
+		const where = channelPicker("", used);
+		const picks = buttonPicker(buttons, Object.keys(buttons));
+		clear(body,
+			rows.length ? rows : h("div", { class: "muted small" }, "No panels yet. Post one below, or run /ia-panel in a channel."),
+			h("div", { class: "editor-subsection stack", style: { gap: "10px", paddingTop: "6px", borderTop: "1px dashed var(--line-2)" } },
+				h("b", { class: "small" }, "Post a new panel"),
+				h("div", { class: "grid-2" },
+					h("label", { class: "field" }, h("span", null, "Channel"), where),
+					h("div", { class: "field" }, h("span", null, "Buttons"), picks.el)),
+				h("div", { class: "row" },
+					h("button", { class: "btn primary", onclick: () => {
+						if (!where.value.trim()) return toast("Choose a channel first", "error");
+						call("/settings/panels", "POST", { channelId: where.value.trim(), buttons: picks.value() }, `Panel posted in ${name(where.value.trim())}`);
+					} }, icon("plus"), "Post panel"),
+					panels.length ? h("button", { class: "btn ghost", title: "Update every panel to the current design and repost any that were deleted", onclick: () => call("/settings/panels/sync", "POST", {}, "Panels checked") }, icon("refresh"), "Check all panels") : null)));
+	}
+
+	api("/settings/panels").then(draw).catch(error => clear(body, h("div", { class: "muted small" }, error.message)));
+	return h("section", { class: "editor-section" }, h("h3", null, "Ticket panels"),
+		h("p", { class: "muted small", style: { marginTop: 0 } }, "Choose where the report buttons appear. You can have a panel in several channels, choose which buttons each one shows, and move them at any time. The bot keeps every panel up to date and reposts it if the message is deleted."),
+		body);
 }

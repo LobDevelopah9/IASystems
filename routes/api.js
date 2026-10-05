@@ -532,6 +532,38 @@ router.put("/settings/roles", requireCap("settings.manage"), wrap(async (req, re
 	res.json({ roleMap: policy.roleMap(), sync });
 }));
 
+// Intake panels (the report buttons): where they are posted, which buttons they show. Directors manage these.
+function panelView() {
+	const panels = require("../lib/panels");
+	return { panels: panels.list(), buttons: panels.BUTTONS };
+}
+
+router.get("/settings/panels", requireCap("settings.manage"), (req, res) => res.json(panelView()));
+
+router.post("/settings/panels", requireCap("settings.manage"), wrap(async (req, res) => {
+	await require("../lib/panels").add(req.body?.channelId, req.body?.buttons, req.user, req.ip).catch(error => {
+		throw Object.assign(error, { status: error.status || 400 });
+	});
+	res.json(panelView());
+}));
+
+router.patch("/settings/panels/:channelId", requireCap("settings.manage"), wrap(async (req, res) => {
+	await require("../lib/panels").update(req.params.channelId, req.body || {}, req.user, req.ip).catch(error => {
+		throw Object.assign(error, { status: error.status || 400 });
+	});
+	res.json(panelView());
+}));
+
+router.delete("/settings/panels/:channelId", requireCap("settings.manage"), wrap(async (req, res) => {
+	await require("../lib/panels").remove(req.params.channelId, req.user, req.ip);
+	res.json(panelView());
+}));
+
+router.post("/settings/panels/sync", requireCap("settings.manage"), wrap(async (req, res) => {
+	const result = await require("../lib/panels").sync();
+	res.json({ ...panelView(), result });
+}));
+
 router.put("/settings/discord", requireCap("settings.manage"), wrap(async (req, res) => {
 	policy.saveDiscordSettings(req.body || {}, req.user.discord_id);
 	audit.record(req.user, "settings.discord", { type: "settings", ref: "discord" }, policy.discordSettings(), req.ip);

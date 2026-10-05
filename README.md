@@ -86,7 +86,7 @@ True screenshot prevention is impossible in a browser. These controls remove the
 
 | Command | Who | Purpose |
 | --- | --- | --- |
-| `/ia-panel` | Supervisor+ | Posts the intake panel with the three report buttons. |
+| `/ia-panel` | Supervisor+ | Posts the intake panel in this channel and saves it. Directors manage all panels (channels, buttons, moving, removing) in Settings → Discord & roles → Ticket panels; the bot keeps them up to date and reposts deleted ones. |
 | `/interview member [case] [ticket] [reason]` | Investigator+ | Opens an interview ticket. With `case`, the transcript is added to that case on close. With `ticket`, it links to that report so one merged case is drafted when both close. |
 | `/close [reason]` | IA staff or ticket opener | Captures the full transcript and attachments, routes it to a case, deletes the channel. |
 | `/link-tickets tickets` | Investigator+ | Pre-links tickets (e.g. `T-0012 T-0013`) so the AI drafts one merged case. |
