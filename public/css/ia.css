@@ -229,12 +229,24 @@ textarea.input { resize: vertical; min-height: 110px; line-height: 1.55; }
 .stat.active { border-color: var(--c); background: var(--panel-2); }
 
 /* ---------- Filters ---------- */
-.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 14px; }
+.filters { display: flex; flex-direction: column; gap: 10px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); margin-bottom: 14px; }
+.filter-row { display: flex; gap: 8px; align-items: center; }
+.filter-row .btn.on { background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold-2); }
+.count-badge { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--gold); color: #16120a; font: 700 11px var(--font); }
+.count-badge[hidden] { display: none; }
+.filter-panel { display: flex; flex-direction: column; gap: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.filter-panel[hidden] { display: none; }
+.filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; }
+.filter-grid .field span { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+@media (max-width: 860px) { .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* Long chips (punishments) stay inside the card. */
+.tag-clip { max-width: 100%; min-width: 0; }
+.tag-clip .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .search { position: relative; flex: 1 1 260px; }
 .search .ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--muted); width: 16px; height: 16px; }
 .search .input { padding-left: 34px; }
 .search kbd { position: absolute; right: 9px; top: 50%; transform: translateY(-50%); font: 11px var(--mono); color: var(--muted); border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 5px; }
-.filters select.input, .filters input[type="date"].input { width: auto; min-width: 130px; }
+.filter-grid .input { width: 100%; min-width: 0; }
 .segmented { display: inline-flex; border: 1px solid var(--line-2); border-radius: var(--radius-sm); overflow: hidden; }
 .segmented button { height: 34px; padding: 0 12px; border: 0; background: var(--bg-2); color: var(--text-2); cursor: pointer; font-size: 12px; font-weight: 600; }
 .segmented button.on { background: var(--gold-soft); color: var(--gold-2); }

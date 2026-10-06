@@ -31,26 +31,61 @@ export async function render({ key, page, go, isCurrent }) {
 	const statsEl = h("div", { class: "stats" });
 	const resultLine = h("div", { class: "result-line" });
 	const body = h("div");
-	const searchInput = h("input", { class: "input", type: "search", placeholder: "Search case #, 2M callsign, ROBLOX/Discord username, basis, punishment, report text…", "aria-label": "Search cases" });
+	const searchInput = h("input", { class: "input", type: "search", placeholder: "Search cases, callsigns, usernames…", "aria-label": "Search case number, 2M callsign, ROBLOX or Discord username, basis, punishment, or report text" });
 	const agentSelect = h("select", { class: "input", "aria-label": "Assigned agent" }, h("option", { value: "" }, "Any agent"), h("option", { value: "me" }, "Assigned to me"), h("option", { value: "unassigned" }, "Unassigned"));
 	const kindSelect = h("select", { class: "input", "aria-label": "Case type" }, h("option", { value: "" }, "All types"), h("option", { value: "misconduct" }, "Misconduct"), h("option", { value: "ops" }, "OPS / system"));
 	const from = h("input", { class: "input", type: "date", "aria-label": "Opened from" });
 	const to = h("input", { class: "input", type: "date", "aria-label": "Opened to" });
 	const subject = h("input", { class: "input", placeholder: "Trooper", "aria-label": "Trooper name" });
 	const reporter = h("input", { class: "input", placeholder: "Reporting party", "aria-label": "Reporting party" });
-	subject.style.maxWidth = "150px";
-	reporter.style.maxWidth = "160px";
 	const anon = h("input", { type: "checkbox" });
 	const viewToggle = h("div", { class: "segmented" },
 		h("button", { type: "button", class: view === "board" ? "on" : "", "aria-pressed": String(view === "board"), "aria-label": "Board view", title: "Board view", onclick: () => setView("board") }, icon("columns")),
 		h("button", { type: "button", class: view === "list" ? "on" : "", "aria-pressed": String(view === "list"), "aria-label": "List view", title: "List view", onclick: () => setView("list") }, icon("list")));
 
+	// One line by default: search, a Filters button (with how many are on), and the view toggle.
+	// Everything else lives in a panel that opens under the bar.
+	const field = (label, control) => h("label", { class: "field" }, h("span", null, label), control);
+	const clearAll = h("button", { type: "button", class: "btn ghost sm", onclick: () => {
+		for (const el of [subject, reporter, from, to]) el.value = "";
+		for (const el of [kindSelect, agentSelect, tagSelect, sourceSelect]) el.value = "";
+		anon.checked = false;
+		Object.assign(filters, { kind: "", agent: "", from: "", to: "", subject: "", reporter: "", anonymous: "", tag: "", source: "" });
+		updateCount();
+		reload();
+	} }, "Clear filters");
+	const morePanel = h("div", { class: "filter-panel", id: "board-filters", hidden: true },
+		h("div", { class: "filter-grid" },
+			field("Trooper", subject),
+			field("Reporting party", reporter),
+			field("Case type", kindSelect),
+			field("Assigned agent", agentSelect),
+			field("Label", tagSelect),
+			field("Records", sourceSelect),
+			field("Opened from", from),
+			field("Opened to", to)),
+		h("div", { class: "row" }, h("label", { class: "check" }, anon, "Anonymous reports only"), h("div", { class: "spacer" }), clearAll));
+	const countBadge = h("span", { class: "count-badge", hidden: true });
+	const moreButton = h("button", { type: "button", class: "btn", "aria-expanded": "false", "aria-controls": "board-filters", onclick: () => {
+		const open = morePanel.hidden;
+		morePanel.hidden = !open;
+		moreButton.setAttribute("aria-expanded", String(open));
+		moreButton.classList.toggle("on", open);
+	} }, icon("list"), "Filters", countBadge);
+	function updateCount() {
+		const n = ["subject", "reporter", "kind", "agent", "from", "to", "anonymous", "tag", "source"].filter(k => filters[k]).length;
+		countBadge.textContent = String(n);
+		countBadge.hidden = !n;
+		clearAll.disabled = !n;
+	}
+	updateCount();
+
 	const filterBar = h("div", { class: "filters" },
-		h("div", { class: "search" }, icon("search"), searchInput, h("kbd", null, "/")),
-		subject, reporter, kindSelect, agentSelect, from, to,
-		tagSelect, sourceSelect,
-		h("label", { class: "check" }, anon, "Anonymous only"),
-		review ? null : viewToggle);
+		h("div", { class: "filter-row" },
+			h("div", { class: "search" }, icon("search"), searchInput, h("kbd", null, "/")),
+			moreButton,
+			review ? null : viewToggle),
+		morePanel);
 
 	clear(page.content, review ? null : statsEl, filterBar, resultLine, body);
 
@@ -76,7 +111,7 @@ export async function render({ key, page, go, isCurrent }) {
 		results = data.cases;
 		draw();
 	};
-	const reload = debounce(() => load().catch(e => toast(e.message, "error")), 140);
+	const reload = debounce(() => { updateCount(); load().catch(e => toast(e.message, "error")); }, 140);
 
 	searchInput.addEventListener("input", () => { filters.q = searchInput.value; reload(); });
 	subject.addEventListener("input", () => { filters.subject = subject.value; reload(); });
@@ -118,7 +153,7 @@ export async function render({ key, page, go, isCurrent }) {
 
 	function draw() {
 		if (!review) drawStats();
-		const anyFilter = filters.q || filters.subject || filters.reporter || filters.kind || filters.agent || filters.from || filters.to || filters.anonymous || (!review && filters.status.length);
+		const anyFilter = filters.q || filters.subject || filters.reporter || filters.kind || filters.agent || filters.from || filters.to || filters.anonymous || filters.tag || filters.source || (!review && filters.status.length);
 		resultLine.textContent = `${results.length} case${results.length === 1 ? "" : "s"}${anyFilter ? " match your filters" : ""}`;
 		if (!results.length) {
 			clear(body, h("div", { class: "panel" }, h("div", { class: "empty" }, icon(review ? "review" : "search"),
@@ -235,6 +270,6 @@ export function tags(c) {
 		c.signatureState === "stale" ? h("span", { class: "tag red" }, icon("alert"), "Signature stale") : null,
 		c.appealPending ? h("span", { class: "tag violet" }, icon("flag"), "Appeal requested") : null,
 		c.ticketCount > 1 ? h("span", { class: "tag gold" }, icon("link"), `${c.ticketCount} tickets`) : null,
-		c.punishmentText || c.punishment ? h("span", { class: "tag gold", title: c.punishmentText || c.punishment }, icon("scale"), (c.punishmentText || c.punishment).slice(0, 48)) : null
+		c.punishmentText || c.punishment ? h("span", { class: "tag gold tag-clip", title: c.punishmentText || c.punishment }, icon("scale"), h("span", { class: "clip" }, c.punishmentText || c.punishment)) : null
 	];
 }
