@@ -617,3 +617,30 @@ table.table { width: 100%; border-collapse: collapse; }
 .dc-field-name { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
 .dc-embed-footer { font-size: 11.5px; color: var(--muted); }
 .dc-why { margin-top: 6px; font-size: 11px; color: var(--muted); font-style: italic; }
+
+/* Collapsible sidebar: icons only, labels as tooltips. Saved per browser; "[" toggles it. */
+.shell { transition: grid-template-columns 0.18s ease; }
+.brand-row { display: flex; align-items: flex-start; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.brand-row .brand { flex: 1; min-width: 0; border-bottom: 0; margin-bottom: 0; }
+.sidebar-toggle { flex: none; margin-top: 6px; color: var(--muted); }
+.sidebar-toggle:hover { color: var(--text); }
+body.nav-collapsed .shell { grid-template-columns: 68px minmax(0, 1fr); }
+body.nav-collapsed .sidebar { padding-left: 10px; padding-right: 10px; overflow: hidden; }
+body.nav-collapsed .brand-row { flex-direction: column; align-items: center; gap: 6px; padding-bottom: 10px; }
+body.nav-collapsed .brand { padding: 2px 0 0; justify-content: center; }
+body.nav-collapsed .brand img { width: 36px; height: 36px; }
+body.nav-collapsed .brand-text,
+body.nav-collapsed .nav-text,
+body.nav-collapsed .nav-label,
+body.nav-collapsed .me .who,
+body.nav-collapsed .me .btn { display: none; }
+body.nav-collapsed .sidebar-toggle { margin-top: 0; }
+body.nav-collapsed .nav a { justify-content: center; padding: 0; }
+body.nav-collapsed .nav a.active::before { left: -10px; }
+body.nav-collapsed .nav .count { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px; margin: 0; }
+body.nav-collapsed .sidebar .me { justify-content: center; padding: 8px 0; background: none; border-color: transparent; }
+@media (max-width: 860px) {
+	.sidebar-toggle { display: none; }
+	body.nav-collapsed .shell { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .shell { transition: none; } }

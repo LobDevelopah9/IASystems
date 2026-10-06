@@ -30,6 +30,20 @@ const NAV = [
 	{ key: "my", label: "My IA Record", icon: "user", cap: "self.cases" }
 ];
 
+const SIDEBAR_KEY = "ia.sidebar";
+let collapseButton;
+
+function setCollapsed(collapsed) {
+	document.body.classList.toggle("nav-collapsed", collapsed);
+	try { localStorage.setItem(SIDEBAR_KEY, collapsed ? "collapsed" : "open"); } catch { /* storage unavailable */ }
+	if (collapseButton) {
+		collapseButton.replaceChildren(icon(collapsed ? "expand" : "collapse"));
+		collapseButton.setAttribute("aria-label", collapsed ? "Expand sidebar" : "Collapse sidebar");
+		collapseButton.setAttribute("aria-expanded", String(!collapsed));
+		collapseButton.title = collapsed ? "Expand sidebar ( [ )" : "Collapse sidebar ( [ )";
+	}
+}
+
 let root;
 let content;
 let titleEl;
@@ -62,11 +76,14 @@ function renderShell() {
 	subEl = h("div", { class: "sub" });
 	actionsEl = h("div", { class: "row" });
 	content = h("main", { class: "content", id: "content", tabindex: "-1" });
+	collapseButton = h("button", { class: "btn ghost sm sidebar-toggle", type: "button", onclick: () => setCollapsed(!document.body.classList.contains("nav-collapsed")) });
 	root = clear(document.getElementById("root"),
 		h("div", { class: "shell" },
 			h("aside", { class: "sidebar" },
-				h("a", { class: "brand", href: "#/" }, h("img", { src: "img/ia-seal.png", alt: "" }),
-					h("div", null, h("b", null, "SAHP · IA"), h("span", null, "Professional Standards"))),
+				h("div", { class: "brand-row" },
+					h("a", { class: "brand", href: "#/", title: "SAHP Internal Affairs" }, h("img", { src: "img/ia-seal.png", alt: "" }),
+						h("div", { class: "brand-text" }, h("b", null, "SAHP · IA"), h("span", null, "Professional Standards"))),
+					collapseButton),
 				navEl,
 				h("div", { class: "me" },
 					avatar(me.displayName, me.avatar),
@@ -96,8 +113,8 @@ function renderNav(active) {
 			pendingSection = null;
 		}
 		const count = item.count?.();
-		items.push(h("a", { href: `#/${item.key}`, class: active === item.key ? "active" : "" },
-			icon(item.icon), item.label, count ? h("span", { class: "count" }, count) : null));
+		items.push(h("a", { href: `#/${item.key}`, class: active === item.key ? "active" : "", title: item.label, "aria-label": count ? `${item.label} (${count})` : item.label },
+			icon(item.icon), h("span", { class: "nav-text" }, item.label), count ? h("span", { class: "count" }, count) : null));
 	}
 	clear(navEl, items);
 }
@@ -157,6 +174,13 @@ async function boot() {
 	}
 	setViewer({ name: store.me.displayName, id: store.me.id });
 	renderShell();
+	let saved = "open";
+	try { saved = localStorage.getItem(SIDEBAR_KEY) || "open"; } catch { /* storage unavailable */ }
+	setCollapsed(saved === "collapsed");
+	document.addEventListener("keydown", event => {
+		const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable;
+		if (event.key === "[" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) setCollapsed(!document.body.classList.contains("nav-collapsed"));
+	});
 	window.addEventListener("hashchange", route);
 	route();
 	setInterval(refreshCounts, 60000);
