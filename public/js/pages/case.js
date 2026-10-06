@@ -235,30 +235,28 @@ function sidebar(c, reload) {
 	} }, icon("bot"), "Redraft with AI"));
 	if (p.canViewHistory) actions.append(h("button", { class: "btn", onclick: () => openHistory(c) }, icon("log"), "Case history & audit"));
 	if (p.canVoid) actions.append(h("button", { class: "btn danger", onclick: async () => {
-		const typed = await confirmDialog({
+		const reason = await confirmDialog({
 			title: `Void case #${c.ref}?`,
 			message: "For signed cases that should not exist, such as tests. The case is renamed VOID-" + c.ref + ", closed, removed from the board, and its case number is freed. Nothing is deleted: signatures and the audit log stay intact, and the case remains reachable from the audit log.",
-			confirmLabel: "Void case",
+			confirmLabel: "Yes, void case",
 			danger: true,
-			input: { label: `Type VOID ${c.ref} to confirm`, required: true }
+			input: { label: "Reason (recorded on the case and in the audit log)", value: "Test case created while setting up the portal", required: true }
 		});
-		if (!typed) return;
-		const reason = await confirmDialog({ title: "Reason for voiding", message: "Recorded on the case and in the audit log.", confirmLabel: "Void case", danger: true, input: { label: "Reason", value: "Test case created while setting up the portal", required: true } });
 		if (!reason) return;
-		const res = await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/void`, { method: "POST", body: { confirm: typed.trim(), reason } }), `Case #${c.ref} voided`);
+		const res = await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/void`, { method: "POST", body: { confirm: `VOID ${c.ref}`, reason } }), `Case #${c.ref} voided`);
 		refreshCounts();
 		location.hash = `#/cases/${encodeURIComponent(res.ref)}`;
 	} }, icon("x"), "Void test case (owner)"));
 	if (p.canDelete) actions.append(h("button", { class: "btn danger", onclick: async () => {
-		const typed = await confirmDialog({
+		const sure = await confirmDialog({
 			title: `Delete case #${c.ref}?`,
-			message: "Owner-only cleanup for unsigned cases such as tests. The case is removed permanently, its tickets return to the inbox, and the deletion is recorded in the audit log. Signed cases can never be deleted.",
-			confirmLabel: "Delete case",
-			danger: true,
-			input: { label: `Type DELETE ${c.ref} to confirm`, required: true }
+			message: "Are you sure? The case is removed permanently, its tickets return to the inbox, and the deletion is recorded in the audit log. This cannot be undone.",
+			confirmLabel: "Yes, delete case",
+			danger: true
 		});
-		if (!typed) return;
-		await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}`, { method: "DELETE", body: { confirm: typed.trim(), reason: "Deleted from case file" } }), `Case #${c.ref} deleted`);
+		if (!sure) return;
+		// The API still requires an explicit confirmation token so a stray request can never delete a case.
+		await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}`, { method: "DELETE", body: { confirm: `DELETE ${c.ref}`, reason: "Deleted from case file" } }), `Case #${c.ref} deleted`);
 		refreshCounts();
 		location.hash = "#/board";
 	} }, icon("x"), "Delete case (owner)"));

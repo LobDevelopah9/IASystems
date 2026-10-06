@@ -147,7 +147,7 @@ router.post("/cases/:ref/void", requireCap("settings.manage"), (req, res) => {
 	if (cases.relation(req.user, row).isSubject) throw cases.httpError(403, "You cannot void a case where you are the accused");
 	if (row.legacy_source) throw cases.httpError(409, "Imported records cannot be voided");
 	if (row.voided) throw cases.httpError(409, "This case is already void");
-	if (String(req.body?.confirm || "").trim() !== `VOID ${row.ref}`) throw cases.httpError(400, `Type VOID ${row.ref} to confirm`);
+	if (String(req.body?.confirm || "").trim() !== `VOID ${row.ref}`) throw cases.httpError(400, "Confirm voiding this case first");
 	const reason = String(req.body?.reason || "").trim().slice(0, 300);
 	if (reason.length < 5) throw cases.httpError(400, "Give a reason for voiding this case");
 	let newRef = `VOID-${row.ref}`;
@@ -164,7 +164,7 @@ router.delete("/cases/:ref", requireCap("settings.manage"), (req, res) => {
 	const row = cases.requireCase(req.params.ref);
 	if (cases.relation(req.user, row).isSubject) throw cases.httpError(403, "You cannot delete a case where you are the accused");
 	if (db.prepare("SELECT 1 FROM signatures WHERE case_id = ?").get(row.id)) throw cases.httpError(409, "Signed cases are permanent and cannot be deleted");
-	if (String(req.body?.confirm || "").trim() !== `DELETE ${row.ref}`) throw cases.httpError(400, `Type DELETE ${row.ref} to confirm`);
+	if (String(req.body?.confirm || "").trim() !== `DELETE ${row.ref}`) throw cases.httpError(400, "Confirm deleting this case first");
 	db.transaction(() => {
 		db.prepare("INSERT OR REPLACE INTO case_purges (case_id, ref, purged_by, reason, purged_at) VALUES (?, ?, ?, ?, ?)")
 			.run(row.id, row.ref, req.user.discord_id, String(req.body?.reason || "").slice(0, 300) || null, now());
