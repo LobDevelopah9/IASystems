@@ -80,7 +80,7 @@ export async function render({ key, page, go, isCurrent }) {
 	}
 	updateCount();
 
-	const filterBar = h("div", { class: "filters" },
+	const filterBar = h("div", { class: "filters stacked" },
 		h("div", { class: "filter-row" },
 			h("div", { class: "search" }, icon("search"), searchInput, h("kbd", null, "/")),
 			moreButton,
