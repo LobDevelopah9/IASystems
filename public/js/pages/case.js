@@ -450,7 +450,6 @@ export function openSignModal(c, onDone) {
 	const appealable = h("input", { type: "checkbox", checked: c.final.appealable ?? ai?.appealable ?? false });
 	const notice = h("textarea", { class: "input", value: c.final.notice || "", placeholder: "What the member will see in their IA record. Do not include reporter details." });
 	const statement = h("input", { class: "input", placeholder: "Optional: basis for the decision (internal)" });
-	const typed = h("input", { class: "input", placeholder: store.me.displayName, autocomplete: "off" });
 	function updateDiff() {
 		diff.textContent = ai && (picker.value() !== ai.punishmentKeys.join(",") || finding.value !== ai.finding)
 			? `Differs from AI recommendation (${findingLabel(ai.finding)} · ${ai.punishmentLabel}). That's fine: your determination is the one of record.` : "";
@@ -471,14 +470,13 @@ export function openSignModal(c, onDone) {
 			h("label", { class: "field" }, h("span", null, "Notice to member"), notice, h("small", null, "Shown to the subject in their IA record once approved. The AI rationale and narrative are never shown to them.")),
 			h("label", { class: "field" }, h("span", null, "Statement"), statement),
 			h("div", { class: "stale-banner banner-gold" }, icon("pen"),
-				h("div", null, "Your signature is recorded with a timestamp and a hash of the case file. It cannot be edited or removed. Any later edit to the signed content flags the signature and sends the case back for review.")),
-			h("label", { class: "field" }, h("span", null, `Type your name exactly (${store.me.displayName}) to sign`), typed)),
+				h("div", null, h("b", null, `Signing as ${store.me.displayName}. `), "Your signature is recorded with a timestamp and a hash of the case file. It cannot be edited or removed. Any later edit to the signed content flags the signature and sends the case back for review."))),
 		actions: [
 			h("button", { class: "btn ghost", onclick: closeLayer }, "Cancel"),
 			h("button", { class: "btn primary", onclick: async () => {
 				await attempt(() => api(`/cases/${encodeURIComponent(c.ref)}/sign`, { method: "POST", body: {
 					finding: finding.value, punishment: picker.value(), punishmentDetail: detail.value, appealable: appealable.checked,
-					notice: notice.value, statement: statement.value, typedName: typed.value
+					notice: notice.value, statement: statement.value, confirm: true
 				} }), `${c.ref} signed and approved`);
 				closeLayer();
 				refreshCounts();

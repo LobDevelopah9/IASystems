@@ -73,7 +73,7 @@ test("every IA agent sees an anonymous reporter, including in search and transcr
 
 test("the accused never sees the anonymous reporter, even once the case is approved", async () => {
 	const sup = await agent(IDS.supervisor);
-	await post(sup, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto", punishmentDetail: "X1 Black Mark", appealable: true, typedName: "Lt. Daniel Brooks" }).expect(200);
+	await post(sup, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto", punishmentDetail: "X1 Black Mark", appealable: true, confirm: true }).expect(200);
 	const hale = await agent(IDS.trooperHale);
 	const mine = await get(hale, "/api/my/cases").expect(200);
 	assert.ok(mine.body.cases.some(c => c.ref === "9001"));
@@ -87,17 +87,17 @@ test("the accused never sees the anonymous reporter, even once the case is appro
 
 test("investigators cannot sign, assign, or manage users", async () => {
 	const a = await agent(IDS.investigator);
-	await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark", typedName: "Det. Priya Nair" }).expect(403);
+	await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark", confirm: true }).expect(403);
 	await post(a, "/api/cases/9001/assign", { agentId: IDS.investigator }).expect(403);
 	await patch(a, `/api/users/${IDS.investigator2}`, { override: "director" }).expect(403);
 	await patch(a, "/api/cases/9001", { changes: { final_punishment: "black_mark" } }).expect(403);
 });
 
-test("approval only happens through a signature, and signing requires the typed name", async () => {
+test("approval only happens through a signature, and signing requires an explicit confirmation", async () => {
 	const a = await agent(IDS.supervisor);
 	await post(a, "/api/cases/9001/status", { to: "approved" }).expect(409);
-	await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto", typedName: "someone else" }).expect(400);
-	const res = await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto", appealable: true, typedName: "Lt. Daniel Brooks" }).expect(200);
+	await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto" }).expect(400);
+	const res = await post(a, "/api/cases/9001/sign", { finding: "sustained", punishment: "black_mark,fto", appealable: true, confirm: true }).expect(200);
 	assert.strictEqual(res.body.case.status, "approved");
 	assert.strictEqual(res.body.case.signatureState, "valid");
 	assert.strictEqual(res.body.case.report.punishmentsIssued, "Black Mark + FTO (X1 Black Mark)".replace(" (X1 Black Mark)", ""));
