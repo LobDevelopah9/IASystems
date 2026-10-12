@@ -91,6 +91,7 @@ True screenshot prevention is impossible in a browser. These controls remove the
 | `/close [reason]` | IA staff or ticket opener | Captures the full transcript and attachments, routes it to a case, deletes the channel. |
 | `/link-tickets tickets` | Investigator+ | Pre-links tickets (e.g. `T-0012 T-0013`) so the AI drafts one merged case. |
 | `/add member` | Investigator+ | Adds someone to the current ticket. |
+| `/rename name` | Investigator+ | Renames the ticket channel, e.g. `0648-trooper-report`. Tickets open as `trooper-report`, `anonymous-report`, `ops-report`, or `interview` with no number; IA staff roles also have Manage Channel on tickets, so they can rename from Discord directly. Discord allows two renames per channel every 10 minutes. |
 | `/case ref` | Investigator+ | Replies privately with a portal link. Never case content. |
 
 The bot never posts punishments, verdicts, or case content into Discord. The IA log channel receives ticket events and portal links only.

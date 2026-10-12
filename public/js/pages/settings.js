@@ -166,6 +166,7 @@ export async function render({ page, params, isCurrent }) {
 					await attempt(() => api("/settings/discord", { method: "PUT", body: { guildId: guild.value.trim(), ticketCategoryId: category.value.trim(), logChannelId: log.value.trim() } }), "Discord settings saved");
 					show();
 				} }, "Save server settings"))),
+			pingSection(s),
 			panelSection(channels),
 			fileSources(s, channels),
 			h("section", { class: "editor-section" }, h("h3", null, "Role mapping"),
@@ -330,4 +331,28 @@ function panelSection(channels) {
 	return h("section", { class: "editor-section" }, h("h3", null, "Ticket panels"),
 		h("p", { class: "muted small", style: { marginTop: 0 } }, "Choose where the report buttons appear. You can have a panel in several channels, choose which buttons each one shows, and move them at any time. The bot keeps every panel up to date and reposts it if the message is deleted."),
 		body);
+}
+
+// Roles pinged in every new ticket. Until saved, every role mapped to IA staff is pinged.
+function pingSection(s) {
+	const staff = [...new Set(["director", "supervisor", "investigator"].flatMap(r => s.roleMap[r] || []))];
+	const chosen = new Set(s.discord.ticketPingRoleIds ?? staff);
+	const editor = s.guildRoles.length
+		? h("div", { class: "role-list" }, s.guildRoles.map(r => {
+			const cb = h("input", { type: "checkbox", checked: chosen.has(r.id) });
+			const chip = h("label", { class: `role-chip${cb.checked ? " on" : ""}` }, cb, h("i"), r.name);
+			chip.querySelector("i").style.background = r.color === "#000000" ? "var(--muted)" : r.color;
+			cb.addEventListener("change", () => { cb.checked ? chosen.add(r.id) : chosen.delete(r.id); chip.classList.toggle("on", cb.checked); });
+			return chip;
+		}))
+		: h("p", { class: "muted small" }, "Invite the bot and save the server ID to pick roles.");
+	return h("section", { class: "editor-section" }, h("h3", null, "New ticket pings"),
+		h("p", { class: "muted small", style: { marginTop: 0 } }, s.discord.ticketPingRoleIds === null
+			? "Every new ticket pings all IA staff roles (the default). Pick specific roles below to change it, or clear them all to turn pings off."
+			: "These roles are pinged in every new ticket. Clear them all to turn pings off."),
+		editor,
+		h("p", { class: "muted small" }, "The bot needs \"Mention @everyone, @here, and All Roles\", or the roles must be set to \"Allow anyone to mention this role\"."),
+		h("div", { style: { marginTop: "12px" } }, h("button", { class: "btn primary", onclick: async () => {
+			await attempt(() => api("/settings/discord", { method: "PUT", body: { ...s.discord, ticketPingRoleIds: [...chosen] } }), chosen.size ? "Ticket pings saved" : "Ticket pings turned off");
+		} }, "Save ticket pings")));
 }
